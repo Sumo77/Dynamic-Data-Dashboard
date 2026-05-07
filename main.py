@@ -238,16 +238,16 @@ def main():
     print(f"  Current : {curr_start} → {curr_end}")
     print(f"  Prior   : {prev_start} → {prev_end}")
     print("=" * 60)
-    print(f"\n  Total Revenue   2025: ${rev_curr:,.2f}  |  2024: ${rev_prev:,.2f}")
-    print(f"  Revenue Growth      : {growth:+.2f}%")
-    print(f"  Profit          2025: ${profit_curr:,.2f}  |  2024: ${profit_prev:,.2f}")
-    print(f"  Inv. Turnover   2025: {inv_turn_curr:.2f}  |  2024: {inv_turn_prev:.2f}")
-    print(f"  Cust. Retention 2025: {ret_curr:.1f}%  |  2024: {ret_prev:.1f}%")
-    print(f"  General Budget      : ${budget:,.2f}")
+    print(f"\n  Total Revenue   2025: ${rev_curr or 0:,.2f}  |  2024: ${rev_prev or 0:,.2f}")
+    print(f"  Revenue Growth      : {growth or 0:+.2f}%")
+    print(f"  Profit          2025: ${profit_curr or 0:,.2f}  |  2024: ${profit_prev or 0:,.2f}")
+    print(f"  Inv. Turnover   2025: {inv_turn_curr or 0:.2f}  |  2024: {inv_turn_prev or 0:.2f}")
+    print(f"  Cust. Retention 2025: {ret_curr or 0:.1f}%  |  2024: {ret_prev or 0:.1f}%")
+    print(f"  General Budget      : ${budget or 0:,.2f}")
     if best:
         print(f"  Best Product        : {best.get('product_id')} | "
-              f"{best.get('category')} | ${best.get('revenue'):,.2f}")
-
+              f"{best.get('category')} | ${best.get('revenue') or 0:,.2f}")
+ 
     print("\n" + "-" * 60)
     print("  ALERTS")
     print("-" * 60)
@@ -259,9 +259,11 @@ def main():
         ("Cust. Retention",    ret_curr,      ret_prev),
     ]:
         result = evaluate_alert(name, curr_val, prev_val)
+        if result is None:
+            continue
         symbol = "🔴" if result["alert"] == "NEGATIVE" else ("🟢" if result["alert"] == "POSITIVE" else "✅")
         print(f"  {symbol}  {result['message']}")
-
+ 
     print("\n" + "=" * 60)
 
 
