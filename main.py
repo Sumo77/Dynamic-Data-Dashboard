@@ -51,7 +51,41 @@ def filter_by_date_range(
 # ---------------------------------------------------------------------------
 # PRIMITIVE KPIs
 # ---------------------------------------------------------------------------
+def monthly_revenue_growth(sales: list[dict]) -> list[dict]:
+    monthly_totals = {}
 
+    for row in sales:
+        order_date = date.fromisoformat(row["order_date"])
+        month_key = order_date.strftime("%Y-%m")
+        revenue = float(row["revenue"])
+
+        if month_key not in monthly_totals:
+            monthly_totals[month_key] = 0.0
+
+        monthly_totals[month_key] += revenue
+
+    months = sorted(monthly_totals.keys())
+    result = []
+    previous_revenue = None
+
+    for month in months:
+        current_revenue = monthly_totals[month]
+
+        if previous_revenue is None or previous_revenue == 0:
+            growth = 0.0
+        else:
+            growth = ((current_revenue - previous_revenue) / previous_revenue) * 100
+
+        result.append({
+            "month": month,
+            "revenue": current_revenue,
+            "growth": growth
+        })
+
+        previous_revenue = current_revenue
+
+    return result
+    
 def total_revenue(
     sales: list[dict],
     start: Optional[date] = None,
@@ -421,6 +455,7 @@ def evaluate_alert(
 # ---------------------------------------------------------------------------
 
 def main():
+
     sales     = load_csv("files/sales.csv")
     products  = load_csv("files/products.csv")
     marketing = load_csv("files/marketing.csv")
@@ -429,21 +464,85 @@ def main():
 
     curr_start = date(2024, 1, 1)
     curr_end   = date(2024, 12, 31)
+
     prev_start = date(2023, 1, 1)
     prev_end   = date(2023, 12, 31)
 
     rev_curr      = total_revenue(sales, curr_start, curr_end)
     rev_prev      = total_revenue(sales, prev_start, prev_end)
-    growth        = growth_revenue(sales, curr_start, curr_end, prev_start, prev_end)
-    profit_curr   = profit(sales, products, marketing, curr_start, curr_end)
-    profit_prev   = profit(sales, products, marketing, prev_start, prev_end)
-    inv_turn_curr = inventory_turnover(sales, products, inventory, curr_start, curr_end)
-    inv_turn_prev = inventory_turnover(sales, products, inventory, prev_start, prev_end)
-    ret_curr      = customer_retention(customers, sales, curr_start, curr_end)
-    ret_prev      = customer_retention(customers, sales, prev_start, prev_end)
-    budget        = general_budget(sales, products, marketing, expected_sales_units=1000,
-                                cash_reserves=5000.0, start=prev_start, end=prev_end)
-    best          = best_product_by_revenue(sales, products, curr_start, curr_end)
+
+    growth        = growth_revenue(
+        sales,
+        curr_start,
+        curr_end,
+        prev_start,
+        prev_end
+    )
+
+    profit_curr   = profit(
+        sales,
+        products,
+        marketing,
+        curr_start,
+        curr_end
+    )
+
+    profit_prev   = profit(
+        sales,
+        products,
+        marketing,
+        prev_start,
+        prev_end
+    )
+
+    inv_turn_curr = inventory_turnover(
+        sales,
+        products,
+        inventory,
+        curr_start,
+        curr_end
+    )
+
+    inv_turn_prev = inventory_turnover(
+        sales,
+        products,
+        inventory,
+        prev_start,
+        prev_end
+    )
+
+    ret_curr      = customer_retention(
+        customers,
+        sales,
+        curr_start,
+        curr_end
+    )
+
+    ret_prev      = customer_retention(
+        customers,
+        sales,
+        prev_start,
+        prev_end
+    )
+
+    budget = general_budget(
+        sales,
+        products,
+        marketing,
+        expected_sales_units=1000,
+        cash_reserves=5000.0,
+        start=prev_start,
+        end=prev_end
+    )
+
+    best = best_product_by_revenue(
+        sales,
+        products,
+        curr_start,
+        curr_end
+    )
+
+    monthly_growth = monthly_revenue_growth(sales)
 
     print("\n" + "=" * 75)
     print("                     BUSINESS KPI REPORT")
@@ -458,9 +557,11 @@ def main():
     print("-" * 75)
 
     print(f"  {'Total Revenue':<22} 2024: ${rev_curr or 0:>15,.2f}  |  2023: ${rev_prev or 0:>15,.2f}")
+
     print(f"  {'Revenue Growth':<22} {(growth or 0):>+15.2f}%")
 
     revenue_status = "Increase 📈" if growth > 0 else "Decrease 📉"
+
     print(f"  {'Revenue Trend':<22} {revenue_status}")
 
     print()
@@ -468,6 +569,7 @@ def main():
     print(f"  {'Profit':<22} 2024: ${profit_curr or 0:>15,.2f}  |  2023: ${profit_prev or 0:>15,.2f}")
 
     profit_change = 0
+
     if profit_prev != 0:
         profit_change = ((profit_curr - profit_prev) / profit_prev) * 100
 
@@ -478,6 +580,7 @@ def main():
     print(f"  {'Inv. Turnover':<22} 2024: {inv_turn_curr or 0:>15,.2f}  |  2023: {inv_turn_prev or 0:>15,.2f}")
 
     inventory_status = "Efficient ✅" if inv_turn_curr > inv_turn_prev else "Declining ⚠️"
+
     print(f"  {'Inventory Status':<22} {inventory_status}")
 
     print()
@@ -485,6 +588,7 @@ def main():
     print(f"  {'Cust. Retention':<22} 2024: {ret_curr or 0:>14.1f}%  |  2023: {ret_prev or 0:>14.1f}%")
 
     retention_status = "Stable 👥" if ret_curr >= ret_prev else "Dropping ⚠️"
+
     print(f"  {'Retention Status':<22} {retention_status}")
 
     print()
@@ -494,10 +598,28 @@ def main():
     print()
 
     if best:
+
         print("  BEST PERFORMING PRODUCT")
+
         print(f"    Product ID : {best.get('product_id')}")
         print(f"    Category   : {best.get('category')}")
         print(f"    Revenue    : ${best.get('revenue') or 0:,.2f}")
+
+    print("\n" + "-" * 75)
+    print("  MONTHLY REVENUE GROWTH")
+    print("-" * 75)
+
+    print(f"  {'Month':<15} {'Revenue':>20} {'Growth':>15}")
+
+    print("  " + "-" * 52)
+
+    for row in monthly_growth:
+
+        print(
+            f"  {row['month']:<15} "
+            f"${row['revenue']:>19,.2f} "
+            f"{row['growth']:>+14.2f}%"
+        )
 
     print("\n" + "-" * 75)
     print("  DATASET SUMMARY")
@@ -514,11 +636,13 @@ def main():
     print("-" * 75)
 
     for name, curr_val, prev_val in [
+
         ("Total Revenue",      rev_curr,      rev_prev),
         ("Revenue Growth %",   growth,        0.0),
         ("Profit",             profit_curr,   profit_prev),
         ("Inv. Turnover",      inv_turn_curr, inv_turn_prev),
         ("Cust. Retention",    ret_curr,      ret_prev),
+
     ]:
 
         result = evaluate_alert(name, curr_val, prev_val)
@@ -526,12 +650,14 @@ def main():
         if result is None:
             continue
 
-        symbol = "🔴" if result["alert"] == "NEGATIVE" else ("🟢" if result["alert"] == "POSITIVE" else "✅")
+        symbol = (
+            "🔴" if result["alert"] == "NEGATIVE"
+            else ("🟢" if result["alert"] == "POSITIVE" else "✅")
+        )
 
         print(f"  {symbol}  {result['message']}")
 
     print("\n" + "=" * 75)
-
 
 
 if __name__ == "__main__":
