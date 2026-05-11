@@ -445,25 +445,73 @@ def main():
                                 cash_reserves=5000.0, start=prev_start, end=prev_end)
     best          = best_product_by_revenue(sales, products, curr_start, curr_end)
 
-    print("\n" + "=" * 70)
-    print("  BUSINESS KPI REPORT")
+    print("\n" + "=" * 75)
+    print("                     BUSINESS KPI REPORT")
+    print("=" * 75)
+
+    print(f"\n  Reporting Period")
     print(f"  Current : {curr_start} → {curr_end}")
     print(f"  Prior   : {prev_start} → {prev_end}")
-    print("=" * 70)
 
-    print(f"\n  {'Total Revenue':<20} 2024: ${rev_curr or 0:>15,.2f}  |  2023: ${rev_prev or 0:>15,.2f}")
-    print(f"  {'Revenue Growth':<20} {(growth or 0):>+15.2f}%")
-    print(f"  {'Profit':<20} 2024: ${profit_curr or 0:>15,.2f}  |  2023: ${profit_prev or 0:>15,.2f}")
-    print(f"  {'Inv. Turnover':<20} 2024: {inv_turn_curr or 0:>16,.2f}  |  2023: {inv_turn_prev or 0:>16,.2f}")
-    print(f"  {'Cust. Retention':<20} 2024: {ret_curr or 0:>15.1f}%  |  2023: {ret_prev or 0:>15.1f}%")
-    print(f"  {'General Budget':<20} ${budget or 0:>15,.2f}")
+    print("\n" + "-" * 75)
+    print("  KPI SUMMARY")
+    print("-" * 75)
+
+    print(f"  {'Total Revenue':<22} 2024: ${rev_curr or 0:>15,.2f}  |  2023: ${rev_prev or 0:>15,.2f}")
+    print(f"  {'Revenue Growth':<22} {(growth or 0):>+15.2f}%")
+
+    revenue_status = "Increase 📈" if growth > 0 else "Decrease 📉"
+    print(f"  {'Revenue Trend':<22} {revenue_status}")
+
+    print()
+
+    print(f"  {'Profit':<22} 2024: ${profit_curr or 0:>15,.2f}  |  2023: ${profit_prev or 0:>15,.2f}")
+
+    profit_change = 0
+    if profit_prev != 0:
+        profit_change = ((profit_curr - profit_prev) / profit_prev) * 100
+
+    print(f"  {'Profit Change':<22} {profit_change:+.2f}%")
+
+    print()
+
+    print(f"  {'Inv. Turnover':<22} 2024: {inv_turn_curr or 0:>15,.2f}  |  2023: {inv_turn_prev or 0:>15,.2f}")
+
+    inventory_status = "Efficient ✅" if inv_turn_curr > inv_turn_prev else "Declining ⚠️"
+    print(f"  {'Inventory Status':<22} {inventory_status}")
+
+    print()
+
+    print(f"  {'Cust. Retention':<22} 2024: {ret_curr or 0:>14.1f}%  |  2023: {ret_prev or 0:>14.1f}%")
+
+    retention_status = "Stable 👥" if ret_curr >= ret_prev else "Dropping ⚠️"
+    print(f"  {'Retention Status':<22} {retention_status}")
+
+    print()
+
+    print(f"  {'General Budget':<22} ${budget or 0:>15,.2f}")
+
+    print()
 
     if best:
-        print(f"  {'Best Product':<20} {best.get('product_id')} | {best.get('category')} | ${best.get('revenue') or 0:,.2f}")
+        print("  BEST PERFORMING PRODUCT")
+        print(f"    Product ID : {best.get('product_id')}")
+        print(f"    Category   : {best.get('category')}")
+        print(f"    Revenue    : ${best.get('revenue') or 0:,.2f}")
 
-    print("\n" + "-" * 70)
+    print("\n" + "-" * 75)
+    print("  DATASET SUMMARY")
+    print("-" * 75)
+
+    print(f"  Total Sales Records      : {len(sales):,}")
+    print(f"  Total Products           : {len(products):,}")
+    print(f"  Total Marketing Records  : {len(marketing):,}")
+    print(f"  Total Customers          : {len(customers):,}")
+    print(f"  Total Inventory Records  : {len(inventory):,}")
+
+    print("\n" + "-" * 75)
     print("  ALERTS")
-    print("-" * 70)
+    print("-" * 75)
 
     for name, curr_val, prev_val in [
         ("Total Revenue",      rev_curr,      rev_prev),
@@ -472,15 +520,17 @@ def main():
         ("Inv. Turnover",      inv_turn_curr, inv_turn_prev),
         ("Cust. Retention",    ret_curr,      ret_prev),
     ]:
+
         result = evaluate_alert(name, curr_val, prev_val)
 
         if result is None:
             continue
 
         symbol = "🔴" if result["alert"] == "NEGATIVE" else ("🟢" if result["alert"] == "POSITIVE" else "✅")
+
         print(f"  {symbol}  {result['message']}")
 
-    print("\n" + "=" * 70)
+    print("\n" + "=" * 75)
 
 
 
