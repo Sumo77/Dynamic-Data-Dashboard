@@ -5,9 +5,10 @@ Data sources (CSVs) loaded from /files/:
     - sales.csv      : customer_id, product_id, quantity, order_date, region, price, revenue
     - products.csv   : product_id, category, price, cost
     - marketing.csv  : campaign_id, channel, cost, conversions, date
-    - customers.csv  : customer_id, age, gender, country, sign_up_date
+    - customers.csv  : customer_id, age, gender, country, signup_date
     - inventory.csv  : inventory_id, product_id, stock_level, warehouse, date
 """
+
 
 import csv
 from datetime import date
@@ -19,8 +20,9 @@ from typing import Optional
 # ---------------------------------------------------------------------------
 
 def load_csv(filepath: str) -> list[dict]:
-    # Load and return all rows from a CSV as a list of dicts
-    pass
+    with open(filepath, newline='', encoding='utf-8') as file:
+        reader = csv.DictReader(file)
+        return list(reader)
 
 
 def filter_by_date_range(
@@ -29,9 +31,21 @@ def filter_by_date_range(
     start: Optional[date],
     end: Optional[date],
 ) -> list[dict]:
-    # Return rows where date_field falls within [start, end] (inclusive)
-    # Pass None for either bound to leave that side open
-    pass
+
+    filtered = []
+
+    for row in rows:
+        row_date = date.fromisoformat(row[date_field])
+
+        if start and row_date < start:
+            continue
+
+        if end and row_date > end:
+            continue
+
+        filtered.append(row)
+
+    return filtered
 
 
 # ---------------------------------------------------------------------------
@@ -43,18 +57,36 @@ def total_revenue(
     start: Optional[date] = None,
     end: Optional[date] = None,
 ) -> float:
-    # KPI: Total Revenue ($) = SUM(price x quantity) for the period
-    pass
 
+    filtered_sales = filter_by_date_range(
+        sales,
+        "order_date",
+        start,
+        end
+    )
 
-def total_cogs(
+    total = 0.0
+
+    for row in filtered_sales:
+        total += float(row["revenue"])
+
+    return total
+
+def growth_revenue(
     sales: list[dict],
-    products: list[dict],
-    start: Optional[date] = None,
-    end: Optional[date] = None,
+    current_start: date,
+    current_end: date,
+    previous_start: date,
+    previous_end: date,
 ) -> float:
-    # Cost of Goods Sold = SUM(cost x quantity), joining sales -> products on product_id
-    pass
+
+    current = total_revenue(sales, current_start, current_end)
+    previous = total_revenue(sales, previous_start, previous_end)
+
+    if previous == 0:
+        return 0.0
+
+    return ((current - previous) / previous) * 100
 
 
 def total_marketing_cost(
@@ -62,8 +94,20 @@ def total_marketing_cost(
     start: Optional[date] = None,
     end: Optional[date] = None,
 ) -> float:
-    # Total marketing spend for the period = SUM(cost)
-    pass
+
+    filtered = filter_by_date_range(
+        marketing,
+        "date",
+        start,
+        end
+    )
+
+    total = 0.0
+
+    for row in filtered:
+        total += float(row["cost"])
+
+    return total
 
 
 def net_sales(
@@ -73,8 +117,12 @@ def net_sales(
     start: Optional[date] = None,
     end: Optional[date] = None,
 ) -> float:
-    # Net Sales = total_revenue() - total_cogs() - total_marketing_cost()
-    pass
+
+    revenue = total_revenue(sales, start, end)
+    cogs = total_cogs(sales, products, start, end)
+    marketing_cost = total_marketing_cost(marketing, start, end)
+
+    return revenue - cogs - marketing_cost
 
 
 def average_inventory(
@@ -82,9 +130,21 @@ def average_inventory(
     start: Optional[date] = None,
     end: Optional[date] = None,
 ) -> float:
-    # Average Inventory = (beginning stock_level + ending stock_level) / 2
-    # Use earliest and latest records within the date range
-    pass
+
+    filtered = filter_by_date_range(
+        inventory,
+        "date",
+        start,
+        end
+    )
+
+    if not filtered:
+        return 0.0
+
+    beginning = float(filtered[0]["stock_level"])
+    ending = float(filtered[-1]["stock_level"])
+
+    return (beginning + ending) / 2
 
 
 def customer_count_at_start(
@@ -92,8 +152,19 @@ def customer_count_at_start(
     sales: list[dict],
     start: Optional[date] = None,
 ) -> int:
-    # Count of customers who made at least one purchase before `start`
-    pass
+
+    if start is None:
+        return 0
+
+    customer_ids = set()
+
+    for row in sales:
+        order_date = date.fromisoformat(row["order_date"])
+
+        if order_date < start:
+            customer_ids.add(row["customer_id"])
+
+    return len(customer_ids)
 
 
 def new_customers_in_period(
@@ -101,10 +172,52 @@ def new_customers_in_period(
     start: Optional[date] = None,
     end: Optional[date] = None,
 ) -> int:
-    # Count of customers whose sign_up_date falls within [start, end]
-    pass
 
+    count = 0
 
+    for row in customers:
+        signup_date = date.fromisoformat(row["signup_date"])
+
+        if start and signup_date < start:
+            continue
+
+        if end and signup_date > end:
+            continue
+
+        count += 1
+
+    return count
+
+def total_cogs(
+    sales: list[dict],
+    products: list[dict],
+    start: Optional[date] = None,
+    end: Optional[date] = None,
+) -> float:
+
+    filtered_sales = filter_by_date_range(
+        sales,
+        "order_date",
+        start,
+        end
+    )
+
+    product_costs = {}
+
+    for product in products:
+        product_costs[product["product_id"]] = float(product["cost"])
+
+    total = 0.0
+
+    for row in filtered_sales:
+        product_id = row["product_id"]
+        quantity = float(row["quantity"])
+
+        cost = product_costs.get(product_id, 0.0)
+
+        total += cost * quantity
+
+    return total
 # ---------------------------------------------------------------------------
 # COMPOSITE KPIs
 # These must call the primitives above — do not re-implement their logic
@@ -117,9 +230,25 @@ def growth_revenue(
     previous_start: date,
     previous_end: date,
 ) -> float:
-    # KPI: Revenue Growth (%) = ((current - previous) / previous) x 100
-    # Call total_revenue() for both periods
-    pass
+
+    current = total_revenue(
+        sales,
+        current_start,
+        current_end
+    )
+
+    previous = total_revenue(
+        sales,
+        previous_start,
+        previous_end
+    )
+
+    if previous == 0:
+        return 0.0
+
+    growth = ((current - previous) / previous) * 100
+
+    return growth
 
 
 def profit(
@@ -129,8 +258,8 @@ def profit(
     start: Optional[date] = None,
     end: Optional[date] = None,
 ) -> float:
-    # KPI: Profit ($) — call net_sales()
-    pass
+
+    return net_sales(sales, products, marketing, start, end)
 
 
 def inventory_turnover(
@@ -140,8 +269,14 @@ def inventory_turnover(
     start: Optional[date] = None,
     end: Optional[date] = None,
 ) -> float:
-    # KPI: Inventory Turnover (ratio) = total_cogs() / average_inventory()
-    pass
+
+    cogs = total_cogs(sales, products, start, end)
+    avg_inv = average_inventory(inventory, start, end)
+
+    if avg_inv == 0:
+        return 0.0
+
+    return cogs / avg_inv
 
 
 def customer_retention(
@@ -150,9 +285,18 @@ def customer_retention(
     start: Optional[date] = None,
     end: Optional[date] = None,
 ) -> float:
-    # KPI: Customer Retention (%) = ((total_at_end - new_customers) / total_at_start) x 100
-    # Call customer_count_at_start() and new_customers_in_period()
-    pass
+
+    starting_customers = customer_count_at_start(customers, sales, start)
+    new_customers = new_customers_in_period(customers, start, end)
+
+    if starting_customers == 0:
+        return 0.0
+
+    total_at_end = starting_customers + new_customers
+
+    retention = ((total_at_end - new_customers) / starting_customers) * 100
+
+    return retention
 
 
 def general_budget(
@@ -165,11 +309,27 @@ def general_budget(
     start: Optional[date] = None,
     end: Optional[date] = None,
 ) -> float:
-    # KPI: General Budget ($) = (expected_sales x net_profit_pct) + cash_reserves
-    # net_profit_pct defaults to 15% (avg from internet, changeable)
-    # Derive actual net_profit_pct from profit() / total_revenue() if data available
-    pass
 
+    revenue = total_revenue(sales, start, end)
+    calculated_profit = profit(sales, products, marketing, start, end)
+
+    if revenue > 0:
+        net_profit_pct = calculated_profit / revenue
+
+    avg_price = 0.0
+    if sales:
+        total_price = 0.0
+        count = 0
+
+        for row in sales:
+            total_price += float(row["price"])
+            count += 1
+
+        avg_price = total_price / count
+
+    expected_revenue = expected_sales_units * avg_price
+
+    return (expected_revenue * net_profit_pct) + cash_reserves
 
 # ---------------------------------------------------------------------------
 # BEST PRODUCT
@@ -181,9 +341,37 @@ def best_product_by_revenue(
     start: Optional[date] = None,
     end: Optional[date] = None,
 ) -> dict:
-    # Return the product with the highest total revenue in the period
-    # Use filter_by_date_range() — do not re-implement date filtering
-    pass
+
+    filtered_sales = filter_by_date_range(sales, "order_date", start, end)
+
+    product_revenue = {}
+
+    for row in filtered_sales:
+        product_id = row["product_id"]
+        revenue = float(row["revenue"])
+
+        if product_id not in product_revenue:
+            product_revenue[product_id] = 0.0
+
+        product_revenue[product_id] += revenue
+
+    if not product_revenue:
+        return {}
+
+    best_product_id = max(product_revenue, key=product_revenue.get)
+
+    product_category = "Unknown"
+
+    for product in products:
+        if product["product_id"] == best_product_id:
+            product_category = product.get("category", "Unknown")
+            break
+
+    return {
+        "product_id": best_product_id,
+        "category": product_category,
+        "revenue": product_revenue[best_product_id]
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -200,8 +388,32 @@ def evaluate_alert(
     negative_threshold_pct: float = -5.0,
     positive_threshold_pct: float = 10.0,
 ) -> dict:
-    # Return a dict with: kpi, current, prior, change_pct, alert ("NEGATIVE"/"POSITIVE"/"OK"), message
-    pass
+
+    if prior_value == 0:
+        change_pct = 0.0
+    else:
+        change_pct = ((current_value - prior_value) / prior_value) * 100
+
+    if change_pct <= negative_threshold_pct:
+        alert = "NEGATIVE"
+        message = f"{kpi_name} dropped by {abs(change_pct):.2f}%"
+
+    elif change_pct >= positive_threshold_pct:
+        alert = "POSITIVE"
+        message = f"{kpi_name} increased by {change_pct:.2f}%"
+
+    else:
+        alert = "OK"
+        message = f"{kpi_name} is stable ({change_pct:.2f}%)"
+
+    return {
+        "kpi": kpi_name,
+        "current": current_value,
+        "prior": prior_value,
+        "change_pct": change_pct,
+        "alert": alert,
+        "message": message
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -209,16 +421,16 @@ def evaluate_alert(
 # ---------------------------------------------------------------------------
 
 def main():
-    sales     = load_csv("/files/sales.csv")
-    products  = load_csv("/files/products.csv")
-    marketing = load_csv("/files/marketing.csv")
-    customers = load_csv("/files/customers.csv")
-    inventory = load_csv("/files/inventory.csv")
+    sales     = load_csv("files/sales.csv")
+    products  = load_csv("files/products.csv")
+    marketing = load_csv("files/marketing.csv")
+    customers = load_csv("files/customers.csv")
+    inventory = load_csv("files/inventory.csv")
 
-    curr_start = date(2025, 1, 1)
-    curr_end   = date(2025, 12, 31)
-    prev_start = date(2024, 1, 1)
-    prev_end   = date(2024, 12, 31)
+    curr_start = date(2024, 1, 1)
+    curr_end   = date(2024, 12, 31)
+    prev_start = date(2023, 1, 1)
+    prev_end   = date(2023, 12, 31)
 
     rev_curr      = total_revenue(sales, curr_start, curr_end)
     rev_prev      = total_revenue(sales, prev_start, prev_end)
@@ -230,27 +442,29 @@ def main():
     ret_curr      = customer_retention(customers, sales, curr_start, curr_end)
     ret_prev      = customer_retention(customers, sales, prev_start, prev_end)
     budget        = general_budget(sales, products, marketing, expected_sales_units=1000,
-                                   cash_reserves=5000.0, start=prev_start, end=prev_end)
+                                cash_reserves=5000.0, start=prev_start, end=prev_end)
     best          = best_product_by_revenue(sales, products, curr_start, curr_end)
 
-    print("=" * 60)
+    print("\n" + "=" * 70)
     print("  BUSINESS KPI REPORT")
     print(f"  Current : {curr_start} → {curr_end}")
     print(f"  Prior   : {prev_start} → {prev_end}")
-    print("=" * 60)
-    print(f"\n  Total Revenue   2025: ${rev_curr or 0:,.2f}  |  2024: ${rev_prev or 0:,.2f}")
-    print(f"  Revenue Growth      : {growth or 0:+.2f}%")
-    print(f"  Profit          2025: ${profit_curr or 0:,.2f}  |  2024: ${profit_prev or 0:,.2f}")
-    print(f"  Inv. Turnover   2025: {inv_turn_curr or 0:.2f}  |  2024: {inv_turn_prev or 0:.2f}")
-    print(f"  Cust. Retention 2025: {ret_curr or 0:.1f}%  |  2024: {ret_prev or 0:.1f}%")
-    print(f"  General Budget      : ${budget or 0:,.2f}")
+    print("=" * 70)
+
+    print(f"\n  {'Total Revenue':<20} 2024: ${rev_curr or 0:>15,.2f}  |  2023: ${rev_prev or 0:>15,.2f}")
+    print(f"  {'Revenue Growth':<20} {(growth or 0):>+15.2f}%")
+    print(f"  {'Profit':<20} 2024: ${profit_curr or 0:>15,.2f}  |  2023: ${profit_prev or 0:>15,.2f}")
+    print(f"  {'Inv. Turnover':<20} 2024: {inv_turn_curr or 0:>16,.2f}  |  2023: {inv_turn_prev or 0:>16,.2f}")
+    print(f"  {'Cust. Retention':<20} 2024: {ret_curr or 0:>15.1f}%  |  2023: {ret_prev or 0:>15.1f}%")
+    print(f"  {'General Budget':<20} ${budget or 0:>15,.2f}")
+
     if best:
-        print(f"  Best Product        : {best.get('product_id')} | "
-              f"{best.get('category')} | ${best.get('revenue') or 0:,.2f}")
- 
-    print("\n" + "-" * 60)
+        print(f"  {'Best Product':<20} {best.get('product_id')} | {best.get('category')} | ${best.get('revenue') or 0:,.2f}")
+
+    print("\n" + "-" * 70)
     print("  ALERTS")
-    print("-" * 60)
+    print("-" * 70)
+
     for name, curr_val, prev_val in [
         ("Total Revenue",      rev_curr,      rev_prev),
         ("Revenue Growth %",   growth,        0.0),
@@ -259,12 +473,15 @@ def main():
         ("Cust. Retention",    ret_curr,      ret_prev),
     ]:
         result = evaluate_alert(name, curr_val, prev_val)
+
         if result is None:
             continue
+
         symbol = "🔴" if result["alert"] == "NEGATIVE" else ("🟢" if result["alert"] == "POSITIVE" else "✅")
         print(f"  {symbol}  {result['message']}")
- 
-    print("\n" + "=" * 60)
+
+    print("\n" + "=" * 70)
+
 
 
 if __name__ == "__main__":
