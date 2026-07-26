@@ -2,25 +2,36 @@ package dashboard.gui;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
-
+/*
+ * This constructor sets everything up for the dashboard window. It creates the
+ * main layout and adds the sidebar and the main content area so the dashboard
+ * is ready before anything is shown on the screen.
+ */
 public class DashboardFrame extends JFrame  {
-    private static final Color SIDEBAR_COLOUR = new Color(28, 36, 50);
+    private static final Color SIDEBAR_COLOUR = new Color(17, 24, 39);      // Deep charcoal
 
-    private static final Color BACKGROUND_COLOR = new Color(244, 247, 250);
-    
-    private static final Color ACTIVE_COLOR = new Color(24, 145, 132);
+   private static final Color BACKGROUND_COLOR = new Color(245, 247, 250); // Clean light grey
+
+   private static final Color ACTIVE_COLOR = new Color(0, 212, 255);       // Neon cyan
 
     public DashboardFrame() {
         configureWindow();
         createLayout();
     }
-
+    /*
+     * This method configures the main window of the dashboard. It sets the title,
+     * size, default close operation, and location of the window.
+     */
     public void configureWindow() {
         setTitle("Dynamic Retail Dashboard");
         setSize(1200, 800);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
     }
+    /*
+     * This method creates the main layout of the dashboard. It adds the sidebar
+     * and the main content area to the window.
+     */
 
     private void createLayout() {
         JPanel mainPanel = new JPanel(new BorderLayout());
@@ -35,6 +46,12 @@ public class DashboardFrame extends JFrame  {
         add(mainPanel);
     }
     
+    /*
+ * I made this method to create the sidebar that sits on the left side of the
+ * dashboard. This is where all the navigation buttons will go so users can
+ * move between the different sections of the system.
+ */
+
     private JPanel createSidebar() {
         JPanel sidebar = new JPanel();
         sidebar.setPreferredSize(new Dimension(210, 0));
@@ -111,7 +128,11 @@ public class DashboardFrame extends JFrame  {
         button.setPreferredSize(new Dimension(180, 40));
         return button;
     }
-
+/*
+ * This method creates the main area of the dashboard where all the information
+ * will be displayed. At the moment it only contains the header and a placeholder
+ * for the chart, but more components will be added later.
+ */
     private JPanel createContentArea() {
         JPanel contentArea = new JPanel();
         contentArea.setBackground(BACKGROUND_COLOR);
@@ -126,7 +147,10 @@ public class DashboardFrame extends JFrame  {
     }
 
    
-    
+    /*
+ * This method creates the header at the top of the dashboard. It shows the
+ * title of the page and gives the user a quick idea of what they are looking at.
+ */
     
     private JPanel createHeader() {
         JPanel header = new JPanel();
@@ -140,7 +164,11 @@ public class DashboardFrame extends JFrame  {
 
         return header;
     }
-
+/*
+ * This method creates the main area of the dashboard where all the information
+ * will be displayed. At the moment it only contains the header and a placeholder
+ * for the chart, but more components will be added later.
+ */
     private JPanel createChartPlaceholder() {
         JPanel chartPlaceholder = new JPanel();
         chartPlaceholder.setBackground(Color.WHITE);
