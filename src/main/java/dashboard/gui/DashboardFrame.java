@@ -130,6 +130,64 @@ public class DashboardFrame extends JFrame {
 
         return logoArea;
     }
+    /*
+ * This method creates the row of KPI cards shown at the top of the Overview page.
+ * Placeholder values are used for now and can be replaced with backend data later.
+ */
+private JPanel createKpiPanel() {
+    JPanel kpiPanel = new JPanel(new GridLayout(1, 4, 15, 0));
+    kpiPanel.setBackground(BACKGROUND_COLOR);
+
+    kpiPanel.add(createKpiCard("Total Revenue", "$0.00"));
+    kpiPanel.add(createKpiCard("Total Profit", "$0.00"));
+    kpiPanel.add(createKpiCard("Customers", "0"));
+    kpiPanel.add(createKpiCard("Products", "0"));
+
+    return kpiPanel;
+}
+
+    /*
+ * This method creates one reusable KPI card with a title and value. Using one
+ * method keeps every card consistent and avoids repeating the same layout code.
+ */
+private JPanel createKpiCard(String title, String value) {
+    JPanel card = new JPanel();
+    card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+    card.setBackground(Color.WHITE);
+
+    card.setBorder(
+            BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(
+                            new Color(226, 232, 240)
+                    ),
+                    new EmptyBorder(18, 18, 18, 18)
+            )
+    );
+
+    JLabel titleLabel = new JLabel(title);
+    titleLabel.setFont(
+            new Font("SansSerif", Font.PLAIN, 13)
+    );
+    titleLabel.setForeground(
+            new Color(100, 116, 139)
+    );
+    titleLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+    JLabel valueLabel = new JLabel(value);
+    valueLabel.setFont(
+            new Font("SansSerif", Font.BOLD, 24)
+    );
+    valueLabel.setForeground(
+            new Color(31, 41, 55)
+    );
+    valueLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+    card.add(titleLabel);
+    card.add(Box.createVerticalStrut(10));
+    card.add(valueLabel);
+
+    return card;
+}
 
     /*
      * This method creates the sidebar containing the navigation buttons.
@@ -249,17 +307,26 @@ public class DashboardFrame extends JFrame {
     /*
      * This method creates the Overview page.
      */
-    private JPanel createOverviewPage() {
-        JPanel overviewPage = new JPanel(new BorderLayout(0, 15));
-        overviewPage.setBackground(BACKGROUND_COLOR);
-        overviewPage.setBorder(new EmptyBorder(5, 25, 25, 25));
+    /*
+ * This method creates the Overview page. It places the page header at the top,
+ * the KPI cards underneath it and the chart area below the cards.
+ */
+private JPanel createOverviewPage() {
+    JPanel overviewPage = new JPanel(new BorderLayout(0, 15));
+    overviewPage.setBackground(BACKGROUND_COLOR);
+    overviewPage.setBorder(new EmptyBorder(10, 25, 25, 25));
 
-        overviewPage.add(createHeader(), BorderLayout.NORTH);
-        overviewPage.add(createChartPlaceholder(), BorderLayout.CENTER);
+    JPanel topSection = new JPanel(new BorderLayout(0, 15));
+    topSection.setBackground(BACKGROUND_COLOR);
 
-        return overviewPage;
-    }
+    topSection.add(createHeader(), BorderLayout.NORTH);
+    topSection.add(createKpiPanel(), BorderLayout.CENTER);
 
+    overviewPage.add(topSection, BorderLayout.NORTH);
+    overviewPage.add(createChartPlaceholder(), BorderLayout.CENTER);
+
+    return overviewPage;
+}
     /*
      * This method creates a temporary page for sections that have not been
      * developed yet.
