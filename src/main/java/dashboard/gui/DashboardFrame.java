@@ -72,6 +72,13 @@ public class DashboardFrame extends JFrame {
     private JComboBox<Integer> yearFilter;
     private JLabel chartStatusLabel;
 
+    private final java.util.Random random = new java.util.Random();
+
+private double sampleRevenue = 61500.00;
+private double sampleProfit = 16400.00;
+private int sampleCustomers = 5000;
+private int sampleProducts = 500;
+
     /*
      * This constructor configures the window and creates the dashboard layout
      * before the application is displayed.
@@ -868,26 +875,60 @@ public class DashboardFrame extends JFrame {
     }
 
     /*
-     * This method refreshes all information shown on the Overview page. The
-     * graph is refreshed now, while KPI backend calls can be added here later.
-     */
-    private void refreshDashboard() {
-        refreshRevenueChart();
+ * This method refreshes the whole Overview page. For now, it updates the
+ * sample KPI values and reloads the sample chart data. Later, Cooper can
+ * replace these values with results returned from the database.
+ */
+private void refreshDashboard() {
 
-        /*
-         * Cooper can later add the backend KPI call here.
-         *
-         * Example:
-         *
-         * DashboardSummary summary =
-         *         dashboardService.getDashboardSummary();
-         *
-         * totalRevenueValue.setText(summary.getTotalRevenue());
-         * totalProfitValue.setText(summary.getTotalProfit());
-         * customersValue.setText(summary.getCustomers());
-         * productsValue.setText(summary.getProducts());
-         */
-    }
+    refreshSampleKpiValues();
+    refreshRevenueChart();
+
+    JOptionPane.showMessageDialog(
+            this,
+            "Dashboard refreshed successfully.",
+            "Refresh Complete",
+            JOptionPane.INFORMATION_MESSAGE
+    );
+}
+
+    /*
+ * This method updates the KPI cards using small temporary changes. The values
+ * stay close to the original sample figures so refreshing the dashboard does
+ * not create unrealistic jumps.
+ */
+private void refreshSampleKpiValues() {
+
+    sampleRevenue += random.nextDouble() * 2000 - 1000;
+    sampleProfit += random.nextDouble() * 800 - 400;
+    sampleCustomers += random.nextInt(21) - 10;
+    sampleProducts += random.nextInt(7) - 3;
+
+    /*
+     * These checks stop the temporary sample values from becoming negative
+     * or dropping below a realistic minimum.
+     */
+    sampleRevenue = Math.max(50000, sampleRevenue);
+    sampleProfit = Math.max(10000, sampleProfit);
+    sampleCustomers = Math.max(4500, sampleCustomers);
+    sampleProducts = Math.max(450, sampleProducts);
+
+    totalRevenueValue.setText(
+            String.format("$%,.2f", sampleRevenue)
+    );
+
+    totalProfitValue.setText(
+            String.format("$%,.2f", sampleProfit)
+    );
+
+    customersValue.setText(
+            String.format("%,d", sampleCustomers)
+    );
+
+    productsValue.setText(
+            String.format("%,d", sampleProducts)
+    );
+}
 
     /*
      * This method reads the selected filters and refreshes the chart. It uses
