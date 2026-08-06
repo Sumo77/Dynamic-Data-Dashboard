@@ -1,23 +1,29 @@
 package dashboard.gui;
+
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
-
-import dashboard.database.ApiClient;
-
 import java.awt.*;
-import java.util.Map;
 /*
- * This constructor sets everything up for the dashboard window. It creates the
- * main layout and adds the sidebar and the main content area so the dashboard
- * is ready before anything is shown on the screen.
+ * This class creates the main dashboard window. It controls the overall layout
+ * and switches between the different pages using CardLayout.
  */
-public class DashboardFrame extends JFrame  {
-    private static final Color SIDEBAR_COLOUR = new Color(17, 24, 39);      // Deep charcoal
+public class DashboardFrame extends JFrame {
 
-   private static final Color BACKGROUND_COLOR = new Color(245, 247, 250); // Clean light grey
+    private static final Color SIDEBAR_COLOUR =
+            new Color(17, 24, 39);
 
-   private static final Color ACTIVE_COLOR = new Color(0, 212, 255);       // Neon cyan
+    private static final Color BACKGROUND_COLOR =
+            new Color(245, 247, 250);
 
+    private static final Color ACTIVE_COLOR =
+            new Color(0, 212, 255);
+
+    private CardLayout contentCardLayout;
+    private JPanel contentCardPanel;
+
+    /*
+     * This constructor configures the window and builds the dashboard layout.
+     */
     public DashboardFrame() {
         try {
             String json = ApiClient.getData("api/kpis/summary", Map.of("year_from", "2024"));
@@ -28,176 +34,237 @@ public class DashboardFrame extends JFrame  {
         configureWindow();
         createLayout();
     }
+
     /*
-     * This method configures the main window of the dashboard. It sets the title,
-     * size, default close operation, and location of the window.
+     * This method configures the main dashboard window.
      */
-    public void configureWindow() {
+    private void configureWindow() {
         setTitle("Dynamic Retail Dashboard");
         setSize(1200, 800);
+        setMinimumSize(new Dimension(1000, 700));
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
     }
-    /*
-     * This method creates the main layout of the dashboard. It adds the sidebar
-     * and the main content area to the window.
-     */
 
+    /*
+     * This method creates the top logo area, sidebar and centre content section.
+     */
     private void createLayout() {
         JPanel mainPanel = new JPanel(new BorderLayout());
         mainPanel.setBackground(BACKGROUND_COLOR);
 
-        JPanel sidebar = createSidebar();
-        JPanel contentArea = createContentArea();
+        JPanel northPanel = createTopPanel();
 
-        mainPanel.add(sidebar, BorderLayout.WEST);
-        mainPanel.add(contentArea, BorderLayout.CENTER);
+        SidebarPanel sidebarPanel =
+                new SidebarPanel(this::showPage);
+
+        JPanel centrePanel = createContentArea();
+
+        JPanel southPanel = new JPanel();
+        southPanel.setPreferredSize(new Dimension(0, 0));
+
+        JPanel eastPanel = new JPanel();
+        eastPanel.setPreferredSize(new Dimension(0, 0));
+
+        mainPanel.add(northPanel, BorderLayout.NORTH);
+        mainPanel.add(sidebarPanel, BorderLayout.WEST);
+        mainPanel.add(centrePanel, BorderLayout.CENTER);
+        mainPanel.add(southPanel, BorderLayout.SOUTH);
+        mainPanel.add(eastPanel, BorderLayout.EAST);
 
         add(mainPanel);
     }
-    
+
     /*
- * I made this method to create the sidebar that sits on the left side of the
- * dashboard. This is where all the navigation buttons will go so users can
- * move between the different sections of the system.
- */
+     * This method creates the top section and places the logo on the left side.
+     */
+    private JPanel createTopPanel() {
+        JPanel topPanel = new JPanel(new BorderLayout());
 
-    private JPanel createSidebar() {
-        JPanel sidebar = new JPanel();
-        sidebar.setPreferredSize(new Dimension(210, 0));
-        sidebar.setBackground(SIDEBAR_COLOUR);
-        
-        sidebar.setLayout(
-            new BoxLayout(sidebar, BoxLayout.Y_AXIS)
-    );
-    sidebar.setBorder(
-        new EmptyBorder(25, 18, 25, 18)
-    );
-
-        JLabel logo = new JLabel("Dynamic Retail Dashboard");
-        logo.setForeground(Color.WHITE);
-        logo.setFont(
-                new Font("SansSerif", Font.BOLD, 22)
+        topPanel.setPreferredSize(
+                new Dimension(0, 85)
         );
-        logo.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel subtitle = new JLabel("Admin Dashboard");
-        subtitle.setForeground(new Color(170, 180, 195));
+        topPanel.setBackground(BACKGROUND_COLOR);
+
+        JPanel logoPanel = createLogoPanel();
+
+        logoPanel.setPreferredSize(
+                new Dimension(210, 85)
+        );
+
+        JPanel futureContentArea =
+                new JPanel(new BorderLayout());
+
+        futureContentArea.setBackground(BACKGROUND_COLOR);
+
+        topPanel.add(logoPanel, BorderLayout.WEST);
+        topPanel.add(futureContentArea, BorderLayout.CENTER);
+
+        return topPanel;
+    }
+
+    /*
+     * This method creates the dashboard logo displayed in the top-left corner.
+     */
+    private JPanel createLogoPanel() {
+        JPanel logoPanel = new JPanel();
+
+        logoPanel.setLayout(
+                new BoxLayout(logoPanel, BoxLayout.Y_AXIS)
+        );
+
+        logoPanel.setBackground(SIDEBAR_COLOUR);
+
+        logoPanel.setBorder(
+                BorderFactory.createEmptyBorder(
+                        17,
+                        18,
+                        15,
+                        18
+                )
+        );
+
+        JLabel firstLine =
+                new JLabel("Dynamic Retail");
+
+        firstLine.setForeground(Color.WHITE);
+
+        firstLine.setFont(
+                new Font(
+                        "SansSerif",
+                        Font.BOLD,
+                        18
+                )
+        );
+
+        firstLine.setAlignmentX(
+                Component.LEFT_ALIGNMENT
+        );
+
+        JLabel secondLine =
+                new JLabel("Dashboard");
+
+        secondLine.setForeground(ACTIVE_COLOR);
+
+        secondLine.setFont(
+                new Font(
+                        "SansSerif",
+                        Font.BOLD,
+                        18
+                )
+        );
+
+        secondLine.setAlignmentX(
+                Component.LEFT_ALIGNMENT
+        );
+
+        JLabel subtitle =
+                new JLabel("Admin Dashboard");
+
+        subtitle.setForeground(
+                new Color(170, 180, 195)
+        );
+
         subtitle.setFont(
-                new Font("SansSerif", Font.PLAIN, 11)
+                new Font(
+                        "SansSerif",
+                        Font.PLAIN,
+                        11
+                )
         );
 
-        subtitle.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        sidebar.add(logo);
-        sidebar.add(Box.createVerticalStrut(4));
-        sidebar.add(subtitle);
-        sidebar.add(Box.createVerticalStrut(35));
-
-        sidebar.add(
-                createNavigationButton("Overview", true)
+        subtitle.setAlignmentX(
+                Component.LEFT_ALIGNMENT
         );
 
-        sidebar.add(Box.createVerticalStrut(8));
+        logoPanel.add(firstLine);
+        logoPanel.add(secondLine);
+        logoPanel.add(Box.createVerticalStrut(3));
+        logoPanel.add(subtitle);
 
-        sidebar.add(
-                createNavigationButton("Sales", false)
-        );
-
-        sidebar.add(Box.createVerticalStrut(8));
-
-        sidebar.add(
-                createNavigationButton("Inventory", false)
-        );
-
-        sidebar.add(Box.createVerticalStrut(8));
-
-        sidebar.add(
-                createNavigationButton("Reports", false)
-        );
-
-        sidebar.add(Box.createVerticalStrut(8));
-
-        sidebar.add(
-                createNavigationButton("Alerts", false)
-        );
-
-        return sidebar;
+        return logoPanel;
     }
 
-    private JButton createNavigationButton(String text, boolean isActive) {
-        JButton button = new JButton(text);
-        button.setAlignmentX(Component.LEFT_ALIGNMENT);
-        button.setFocusPainted(false);
-        button.setBorderPainted(false);
-        button.setContentAreaFilled(false);
-        button.setOpaque(true);
-        button.setBackground(isActive ? ACTIVE_COLOR : SIDEBAR_COLOUR);
-        button.setForeground(Color.WHITE);
-        button.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        button.setPreferredSize(new Dimension(180, 40));
-        return button;
-    }
-/*
- * This method creates the main area of the dashboard where all the information
- * will be displayed. At the moment it only contains the header and a placeholder
- * for the chart, but more components will be added later.
- */
-    private JPanel createContentArea() {
-        JPanel contentArea = new JPanel();
-        contentArea.setBackground(BACKGROUND_COLOR);
-        contentArea.setLayout(new BorderLayout());
-
-        JLabel welcomeLabel = new JLabel("Welcome to the Dynamic Retail Dashboard");
-        welcomeLabel.setFont(new Font("SansSerif", Font.BOLD, 24));
-        welcomeLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        contentArea.add(welcomeLabel, BorderLayout.CENTER);
-
-        return contentArea;
-    }
-
-   
     /*
- * This method creates the header at the top of the dashboard. It shows the
- * title of the page and gives the user a quick idea of what they are looking at.
- */
-    
-    private JPanel createHeader() {
-        JPanel header = new JPanel();
-        header.setBackground(BACKGROUND_COLOR);
-        header.setLayout(new BorderLayout());
-        header.setBorder(new EmptyBorder(10, 20, 10, 20));
+     * This method creates every dashboard page and stores them in CardLayout.
+     */
+    private JPanel createContentArea() {
+        contentCardLayout = new CardLayout();
 
-        JLabel titleLabel = new JLabel("Dashboard");
-        titleLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
-        header.add(titleLabel, BorderLayout.WEST);
+        contentCardPanel =
+                new JPanel(contentCardLayout);
 
-        return header;
+        contentCardPanel.setBackground(BACKGROUND_COLOR);
+
+        contentCardPanel.add(
+                new OverviewPanel(),
+                "Overview"
+        );
+
+        contentCardPanel.add(
+                createPlaceholderPage("Sales"),
+                "Sales"
+        );
+
+        contentCardPanel.add(
+                createPlaceholderPage("Inventory"),
+                "Inventory"
+        );
+
+        contentCardPanel.add(
+                createPlaceholderPage("Reports"),
+                "Reports"
+        );
+
+        contentCardPanel.add(
+                createPlaceholderPage("Alerts"),
+                "Alerts"
+        );
+
+        return contentCardPanel;
     }
-/*
- * This method creates the main area of the dashboard where all the information
- * will be displayed. At the moment it only contains the header and a placeholder
- * for the chart, but more components will be added later.
- */
-    private JPanel createChartPlaceholder() {
-        JPanel chartPlaceholder = new JPanel();
-        chartPlaceholder.setBackground(Color.WHITE);
-        chartPlaceholder.setBorder(BorderFactory.createLineBorder(Color.LIGHT_GRAY));
-        chartPlaceholder.setPreferredSize(new Dimension(0, 300));
 
-        JLabel placeholderLabel = new JLabel("Chart Placeholder");
-        placeholderLabel.setFont(new Font("SansSerif", Font.PLAIN, 16));
-        placeholderLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        chartPlaceholder.add(placeholderLabel);
+    /*
+     * This method creates temporary pages for sections that have not been
+     * developed yet.
+     */
+    private JPanel createPlaceholderPage(String pageName) {
+        JPanel page =
+                new JPanel(new GridBagLayout());
 
-        return chartPlaceholder;        
+        page.setBackground(BACKGROUND_COLOR);
+
+        JLabel label =
+                new JLabel(pageName + " Page");
+
+        label.setFont(
+                new Font(
+                        "SansSerif",
+                        Font.BOLD,
+                        28
+                )
+        );
+
+        label.setForeground(
+                new Color(31, 41, 55)
+        );
+
+        page.add(label);
+
+        return page;
     }
 
+    /*
+     * This method displays the page selected from the sidebar.
+     */
+    private void showPage(String pageName) {
+        contentCardLayout.show(
+                contentCardPanel,
+                pageName
+        );
+
+        contentCardPanel.revalidate();
+        contentCardPanel.repaint();
+    }
 }
-
-
-
-    
-
-    
-
