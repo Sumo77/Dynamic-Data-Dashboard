@@ -1,7 +1,11 @@
 package dashboard.gui;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
+
+import dashboard.database.ApiClient;
+
 import java.awt.*;
+import java.util.Map;
 /*
  * This constructor sets everything up for the dashboard window. It creates the
  * main layout and adds the sidebar and the main content area so the dashboard
@@ -15,6 +19,12 @@ public class DashboardFrame extends JFrame  {
    private static final Color ACTIVE_COLOR = new Color(0, 212, 255);       // Neon cyan
 
     public DashboardFrame() {
+        try {
+            String json = ApiClient.getData("api/kpis/summary", Map.of("year_from", "2024"));
+            System.out.println(json); // just proving it works, for now
+        } catch (Exception e) {
+            e.printStackTrace();
+}
         configureWindow();
         createLayout();
     }
