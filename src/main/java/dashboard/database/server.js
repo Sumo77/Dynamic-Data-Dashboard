@@ -7,13 +7,32 @@ const app = express();
 app.use(express.json());
 
 // Points directly to retail_dashboard.db in the exact same directory as server.js
-const dbPath = path.join(__dirname, 'retail_dashboard.db');
+const dbPath = path.join(__dirname, '../../../../../retail_database.db');
 const db = new Database(dbPath);
 
 // 1. Fetch pre-cached KPI Snapshot data
 app.get('/api/kpis/summary', (req, res) => {
   try {
-    const rows = db.prepare('SELECT * FROM kpi_snapshot ORDER BY kpi_year ASC').all();
+    const { year_from, year_to } = req.query;
+
+    let query = 'SELECT * FROM kpi_snapshot';
+    const conditions = [];
+    const params = [];
+
+    if (year_from) {
+      conditions.push('kpi_year >= ?');
+      params.push(year_from);
+    }
+    if (year_to) {
+      conditions.push('kpi_year <= ?');
+      params.push(year_to);
+    }
+    if (conditions.length > 0) {
+      query += ' WHERE ' + conditions.join(' AND ');
+    }
+    query += ' ORDER BY kpi_year ASC';
+
+    const rows = db.prepare(query).all(...params);
     res.json({ success: true, data: rows });
   } catch (err) {
     res.status(500).json({ success: false, error: err.message });
