@@ -1,7 +1,10 @@
 package dashboard.gui;
 
 import javax.swing.*;
+import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import dashboard.database.ApiClient;
+import java.util.Map;
 
 /*
  * This class creates the main dashboard window. It controls the overall layout
@@ -25,6 +28,12 @@ public class DashboardFrame extends JFrame {
      * This constructor configures the window and builds the dashboard layout.
      */
     public DashboardFrame() {
+        try {
+            String json = ApiClient.getData("api/kpis/summary", Map.of("year_from", "2024"));
+            System.out.println(json); // just proving it works, for now
+        } catch (Exception e) {
+            e.printStackTrace();
+}
         configureWindow();
         createLayout();
     }
