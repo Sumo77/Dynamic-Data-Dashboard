@@ -4,6 +4,8 @@ import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import dashboard.database.ApiClient;
+import dashboard.database.SchemaIntrospector;
+import dashboard.database.SchemaIntrospector.TableMeta;
 import java.util.Map;
 
 /*
@@ -24,16 +26,35 @@ public class DashboardFrame extends JFrame {
     private CardLayout contentCardLayout;
     private JPanel contentCardPanel;
 
+    // Populated once at startup, before anything is drawn. Every panel that
+    // needs to know "is this column a date, a measure, or a label" reads
+    // from here instead of guessing per-panel.
+    private Map<String, TableMeta> schema;
+
     /*
      * This constructor configures the window and builds the dashboard layout.
+     * Schema introspection runs first and is intentionally blocking: nothing
+     * should draw a chart or a field picker before we know what the columns
+     * actually mean.
      */
     public DashboardFrame() {
+        try {
+            schema = SchemaIntrospector.introspect();
+            for (TableMeta table : schema.values()) {
+                System.out.println(table.name + " -> " + table.columns.values());
+            }
+        } catch (Exception e) {
+            System.err.println("Schema introspection failed, falling back to no schema metadata:");
+            e.printStackTrace();
+            schema = Map.of();
+        }
+
         try {
             String json = ApiClient.getData("api/kpis/summary", Map.of("year_from", "2024"));
             System.out.println(json); // just proving it works, for now
         } catch (Exception e) {
             e.printStackTrace();
-}
+        }
         configureWindow();
         createLayout();
     }

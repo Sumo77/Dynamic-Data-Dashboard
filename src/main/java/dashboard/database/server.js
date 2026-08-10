@@ -10,6 +10,61 @@ app.use(express.json());
 const dbPath = path.join(__dirname, '../../../../../retail_database.db');
 const db = new Database(dbPath);
 
+// 0. Dynamic schema introspection: table names, column names, SQL storage
+//    types, real foreign key relationships, and one sample value per column
+//    (used client-side to disambiguate TEXT/INTEGER columns that carry
+//    different semantic meaning - e.g. a date string vs. a category label).
+app.get('/api/schema/introspect', (req, res) => {
+  try {
+    const tableRows = db.prepare(
+      "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+    ).all();
+
+    const tables = {};
+
+    for (const { name: tableName } of tableRows) {
+      const columnInfo = db.prepare(`PRAGMA table_info(${tableName})`).all();
+      const foreignKeys = db.prepare(`PRAGMA foreign_key_list(${tableName})`).all();
+
+      const columns = columnInfo.map(col => {
+        let sample = null;
+        try {
+          // Grab the first non-null value in this column to help the client
+          // disambiguate storage type from semantic meaning (e.g. TEXT that
+          // is actually a date vs. TEXT that is actually a label).
+          const row = db.prepare(
+            `SELECT "${col.name}" AS v FROM "${tableName}" WHERE "${col.name}" IS NOT NULL LIMIT 1`
+          ).get();
+          sample = row ? row.v : null;
+        } catch (sampleErr) {
+          sample = null;
+        }
+
+        return {
+          name: col.name,
+          sqlType: col.type,        // INTEGER / REAL / TEXT (as SQLite reports it)
+          nullable: col.notnull === 0,
+          primaryKey: col.pk > 0,
+          sample                     // first observed value, or null if empty/unreadable
+        };
+      });
+
+      tables[tableName] = {
+        columns,
+        foreignKeys: foreignKeys.map(fk => ({
+          column: fk.from,
+          refTable: fk.table,
+          refColumn: fk.to
+        }))
+      };
+    }
+
+    res.json({ success: true, tables });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // 1. Fetch pre-cached KPI Snapshot data
 app.get('/api/kpis/summary', (req, res) => {
   try {
