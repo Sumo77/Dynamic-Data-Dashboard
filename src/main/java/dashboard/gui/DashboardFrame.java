@@ -3,6 +3,9 @@ package dashboard.gui;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+import dashboard.database.ApiClient;
+import java.util.Map;
+
 /*
  * This class creates the main dashboard window. It controls the overall layout
  * and switches between the different pages using CardLayout.
