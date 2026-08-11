@@ -3,33 +3,32 @@ package dashboard.database;
 import java.util.*;
 import java.util.regex.Pattern;
 
-/**
- * Runs once, before the dashboard draws anything.
- *
- * What SQLite genuinely knows, and gives us for free:
- *   - table names, column names, storage type   (PRAGMA table_info)
- *   - real foreign key relationships             (PRAGMA foreign_key_list)
- * These are pulled fresh every run via ApiClient -> /api/schema/introspect.
- * There is nothing to hand-maintain here; if a column is added to the DB,
- * it shows up automatically next launch.
- *
- * What SQLite does NOT know, and never will from the storage type alone:
- *   - whether a TEXT column is a date string or a text label
- *   - whether an INTEGER column is a foreign key / id or a real measure
- * Two disambiguation strategies are used, on purpose kept separate so it's
- * obvious which one is doing the work:
- *   1. TEXT columns: the single sampled value is tested against a hardcoded
- *      canonical date pattern. This is safe to hardcode precisely BECAUSE
- *      the project enforces one date format everywhere (YYYY-MM-DD, or
- *      YYYY-MM-DD HH:MM:SS for timestamps) - a fixed format is a legitimate
- *      thing to hardcode, an unlimited variety of formats would not be.
- *   2. INTEGER/REAL columns: a single sample value CANNOT distinguish an id
- *      from a measure (1002 and 34 are both just numbers). There is no way
- *      around this without inspecting many rows for cardinality, which is
- *      out of scope for a startup-time check. So this still falls back to a
- *      column-name convention (*_id, id -> ID). This is flagged explicitly
- *      rather than silently pretending sampling solved it.
- */
+// Runs once, before the dashboard draws anything.
+//
+// What SQLite genuinely knows, and gives us for free:
+//   - table names, column names, storage type   (PRAGMA table_info)
+//   - real foreign key relationships             (PRAGMA foreign_key_list)
+// These are pulled fresh every run via ApiClient -> /api/schema/introspect.
+// There is nothing to hand-maintain here; if a column is added to the DB,
+// it shows up automatically next launch.
+//
+// What SQLite does NOT know, and never will from the storage type alone:
+//   - whether a TEXT column is a date string or a text label
+//   - whether an INTEGER column is a foreign key / id or a real measure
+// Two disambiguation strategies are used, on purpose kept separate so it's
+// obvious which one is doing the work:
+//   1. TEXT columns: the single sampled value is tested against a hardcoded
+//      canonical date pattern. This is safe to hardcode precisely BECAUSE
+//      the project enforces one date format everywhere (YYYY-MM-DD, or
+//      YYYY-MM-DD HH:MM:SS for timestamps) - a fixed format is a legitimate
+//      thing to hardcode, an unlimited variety of formats would not be.
+//   2. INTEGER/REAL columns: a single sample value CANNOT distinguish an id
+//      from a measure (1002 and 34 are both just numbers). There is no way
+//      around this without inspecting many rows for cardinality, which is
+//      out of scope for a startup-time check. So this still falls back to a
+//      column-name convention (*_id, id -> ID). This is flagged explicitly
+//      rather than silently pretending sampling solved it.
+
 public final class SchemaIntrospector {
 
     public enum SemanticType { ID, MEASURE, DIMENSION, DATE, UNKNOWN }
@@ -75,12 +74,70 @@ public final class SchemaIntrospector {
         TableMeta(String name) { this.name = name; }
     }
 
+    // A column plus which table it came from - what a dropdown item actually needs.
+    public static final class ColumnRef {
+        public final String table;
+        public final ColumnMeta column;
+        public ColumnRef(String table, ColumnMeta column) {
+            this.table = table;
+            this.column = column;
+        }
+        // toString drives what shows up in a JComboBox by default.
+        @Override
+        public String toString() { return table + "." + column.name; }
+    }
+
+    // Every column of a given semantic type, across every table. This is the
+    // one call a dropdown needs: "give me every MEASURE" / "every DIMENSION"
+    // / "every DATE", already filtered, nothing further to classify.
+    public static List<ColumnRef> columnsOfType(Map<String, TableMeta> schema, SemanticType type) {
+        List<ColumnRef> result = new ArrayList<>();
+        for (TableMeta table : schema.values()) {
+            for (ColumnMeta column : table.columns.values()) {
+                if (column.semanticType == type) {
+                    result.add(new ColumnRef(table.name, column));
+                }
+            }
+        }
+        return result;
+    }
+
+    // One row back from /api/query/compare - a group label and its aggregated value.
+    public static final class ComparisonRow {
+        public final String label;
+        public final double value;
+        public ComparisonRow(String label, double value) {
+            this.label = label;
+            this.value = value;
+        }
+    }
+
+    // Parses the JSON body from /api/query/compare into simple rows.
+    // Lives here (not in the gui package) so MiniJson never has to be
+    // exposed outside dashboard.database - callers just get plain data.
+    public static List<ComparisonRow> parseCompareRows(String json) {
+        List<ComparisonRow> rows = new ArrayList<>();
+        Map<String, Object> root = asMap(MiniJson.parse(json));
+
+        if (!Boolean.TRUE.equals(root.get("success"))) {
+            throw new RuntimeException("Query failed: " + root.get("error"));
+        }
+
+        for (Object rowObj : asList(root.get("data"))) {
+            Map<String, Object> row = asMap(rowObj);
+            Object labelObj = row.get("label");
+            Object valueObj = row.get("value");
+            String label = labelObj == null ? "(none)" : String.valueOf(labelObj);
+            double value = (valueObj instanceof Number) ? ((Number) valueObj).doubleValue() : 0.0;
+            rows.add(new ComparisonRow(label, value));
+        }
+        return rows;
+    }
+
     private SchemaIntrospector() {}
 
-    /**
-     * Hits the server, parses the response, classifies every column.
-     * Call this once at startup, before any UI is built.
-     */
+    // Hits the server, parses the response, classifies every column.
+    // Call this once at startup, before any UI is built.
     public static Map<String, TableMeta> introspect() throws Exception {
         String json = ApiClient.getData("api/schema/introspect", null);
         Object parsed = MiniJson.parse(json);
@@ -124,16 +181,14 @@ public final class SchemaIntrospector {
         return result;
     }
 
-    /**
-     * Classification order:
-     *   1. sqlType TEXT   -> regex the sample against the canonical date
-     *      format. Matches -> DATE. Otherwise -> DIMENSION (a label like
-     *      channel, warehouse, category, country, gender, region).
-     *   2. sqlType INTEGER/REAL -> name convention only, since the sample
-     *      value genuinely cannot tell an id apart from a measure.
-     *   3. Anything else (no sample, empty table, unexpected sqlType) ->
-     *      UNKNOWN, so it can be surfaced instead of silently mis-filed.
-     */
+    // Classification order:
+    //   1. sqlType TEXT   -> regex the sample against the canonical date
+    //      format. Matches -> DATE. Otherwise -> DIMENSION (a label like
+    //      channel, warehouse, category, country, gender, region).
+    //   2. sqlType INTEGER/REAL -> name convention only, since the sample
+    //      value genuinely cannot tell an id apart from a measure.
+    //   3. Anything else (no sample, empty table, unexpected sqlType) ->
+    //      UNKNOWN, so it can be surfaced instead of silently mis-filed.
     static SemanticType classify(String columnName, String sqlType, String sample) {
         String type = sqlType == null ? "" : sqlType.toUpperCase(Locale.ROOT);
         String lowerName = columnName.toLowerCase(Locale.ROOT);
@@ -162,16 +217,14 @@ public final class SchemaIntrospector {
         return SemanticType.UNKNOWN;
     }
 
-    /**
-     * Enforces the "only compare what's actually relatable" rule:
-     *   - two MEASURE columns can be compared/plotted directly
-     *   - a MEASURE can be compared against another MEASURE once both are
-     *     bucketed by a shared DATE column (time series)
-     *   - two DIMENSION columns can be cross-tabulated / grouped
-     *   - a DIMENSION can bucket a MEASURE (group-by + aggregate)
-     *   - two ID columns can be compared only via a real foreign key
-     *   - anything else is rejected rather than silently plotted
-     */
+    // Enforces the "only compare what's actually relatable" rule:
+    //   - two MEASURE columns can be compared/plotted directly
+    //   - a MEASURE can be compared against another MEASURE once both are
+    //     bucketed by a shared DATE column (time series)
+    //   - two DIMENSION columns can be cross-tabulated / grouped
+    //   - a DIMENSION can bucket a MEASURE (group-by + aggregate)
+    //   - two ID columns can be compared only via a real foreign key
+    //   - anything else is rejected rather than silently plotted
     public static boolean canCompare(ColumnMeta a, ColumnMeta b) {
         if (a.semanticType == SemanticType.UNKNOWN || b.semanticType == SemanticType.UNKNOWN) {
             return false;

@@ -8,10 +8,8 @@ import dashboard.database.SchemaIntrospector;
 import dashboard.database.SchemaIntrospector.TableMeta;
 import java.util.Map;
 
-/*
- * This class creates the main dashboard window. It controls the overall layout
- * and switches between the different pages using CardLayout.
- */
+// This class creates the main dashboard window. It controls the overall layout
+// and switches between the different pages using CardLayout.
 public class DashboardFrame extends JFrame {
 
     private static final Color SIDEBAR_COLOUR =
@@ -31,12 +29,10 @@ public class DashboardFrame extends JFrame {
     // from here instead of guessing per-panel.
     private Map<String, TableMeta> schema;
 
-    /*
-     * This constructor configures the window and builds the dashboard layout.
-     * Schema introspection runs first and is intentionally blocking: nothing
-     * should draw a chart or a field picker before we know what the columns
-     * actually mean.
-     */
+    // This constructor configures the window and builds the dashboard layout.
+    // Schema introspection runs first and is intentionally blocking: nothing
+    // should draw a chart or a field picker before we know what the columns
+    // actually mean.
     public DashboardFrame() {
         try {
             schema = SchemaIntrospector.introspect();
@@ -59,9 +55,7 @@ public class DashboardFrame extends JFrame {
         createLayout();
     }
 
-    /*
-     * This method configures the main dashboard window.
-     */
+    // This method configures the main dashboard window.
     private void configureWindow() {
         setTitle("Dynamic Retail Dashboard");
         setSize(1200, 800);
@@ -70,9 +64,7 @@ public class DashboardFrame extends JFrame {
         setLocationRelativeTo(null);
     }
 
-    /*
-     * This method creates the top logo area, sidebar and centre content section.
-     */
+    // This method creates the top logo area, sidebar and centre content section.
     private void createLayout() {
         JPanel mainPanel = new JPanel(new BorderLayout());
         mainPanel.setBackground(BACKGROUND_COLOR);
@@ -99,9 +91,7 @@ public class DashboardFrame extends JFrame {
         add(mainPanel);
     }
 
-    /*
-     * This method creates the top section and places the logo on the left side.
-     */
+    // This method creates the top section and places the logo on the left side.
     private JPanel createTopPanel() {
         JPanel topPanel = new JPanel(new BorderLayout());
 
@@ -128,9 +118,7 @@ public class DashboardFrame extends JFrame {
         return topPanel;
     }
 
-    /*
-     * This method creates the dashboard logo displayed in the top-left corner.
-     */
+    // This method creates the dashboard logo displayed in the top-left corner.
     private JPanel createLogoPanel() {
         JPanel logoPanel = new JPanel();
 
@@ -210,9 +198,7 @@ public class DashboardFrame extends JFrame {
         return logoPanel;
     }
 
-    /*
-     * This method creates every dashboard page and stores them in CardLayout.
-     */
+    // This method creates every dashboard page and stores them in CardLayout.
     private JPanel createContentArea() {
         contentCardLayout = new CardLayout();
 
@@ -222,7 +208,7 @@ public class DashboardFrame extends JFrame {
         contentCardPanel.setBackground(BACKGROUND_COLOR);
 
         contentCardPanel.add(
-                new OverviewPanel(),
+                new OverviewPanel(schema),
                 "Overview"
         );
 
@@ -249,10 +235,7 @@ public class DashboardFrame extends JFrame {
         return contentCardPanel;
     }
 
-    /*
-     * This method creates temporary pages for sections that have not been
-     * developed yet.
-     */
+    // This method creates temporary pages for sections that have not been developed yet.
     private JPanel createPlaceholderPage(String pageName) {
         JPanel page =
                 new JPanel(new GridBagLayout());
@@ -279,9 +262,7 @@ public class DashboardFrame extends JFrame {
         return page;
     }
 
-    /*
-     * This method displays the page selected from the sidebar.
-     */
+    // This method displays the page selected from the sidebar.
     private void showPage(String pageName) {
         contentCardLayout.show(
                 contentCardPanel,

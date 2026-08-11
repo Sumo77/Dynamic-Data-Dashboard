@@ -1,15 +1,16 @@
 package dashboard.gui;
 
+import dashboard.database.SchemaIntrospector.TableMeta;
+
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.Map;
 
-/*
- * This class creates the Overview page. It combines the header, KPI cards,
- * revenue chart and space for another dashboard component.
- */
+// This class creates the Overview page. It combines the header, KPI cards,
+// revenue chart and space for another dashboard component.
 public class OverviewPanel extends JPanel {
 
     private static final Color BACKGROUND_COLOR =
@@ -32,18 +33,18 @@ public class OverviewPanel extends JPanel {
 
     private KpiPanel kpiPanel;
     private RevenueChartPanel revenueChartPanel;
+    private final Map<String, TableMeta> schema;
 
-    /*
-     * This constructor creates all parts of the Overview page.
-     */
-    public OverviewPanel() {
+    // This constructor creates all parts of the Overview page. The schema
+    // comes from DashboardFrame, which runs SchemaIntrospector.introspect()
+    // once at startup before any page is built.
+    public OverviewPanel(Map<String, TableMeta> schema) {
+        this.schema = schema;
         configurePanel();
         createLayout();
     }
 
-    /*
-     * This method configures the Overview page layout and spacing.
-     */
+    // This method configures the Overview page layout and spacing.
     private void configurePanel() {
         setLayout(
                 new BorderLayout(0, 15)
@@ -61,9 +62,7 @@ public class OverviewPanel extends JPanel {
         );
     }
 
-    /*
-     * This method combines the header, KPI cards and graph area.
-     */
+    // This method combines the header, KPI cards and graph area.
     private void createLayout() {
         JPanel topSection =
                 new JPanel(new BorderLayout(0, 15));
@@ -93,9 +92,7 @@ public class OverviewPanel extends JPanel {
         );
     }
 
-    /*
-     * This method creates the page title, live date and Refresh Dashboard button.
-     */
+    // This method creates the page title, live date and Refresh Dashboard button.
     private JPanel createHeader() {
         JPanel header =
                 new JPanel(new BorderLayout());
@@ -211,10 +208,8 @@ public class OverviewPanel extends JPanel {
         return header;
     }
 
-    /*
-     * This method creates the graph row. The revenue chart uses two-thirds of
-     * the available space and the remaining area can hold another graph later.
-     */
+    // This method creates the graph row. The revenue chart uses two-thirds of
+    // the available space and the remaining area can hold another graph later.
     private JPanel createGraphArea() {
         JPanel graphArea =
                 new JPanel(new GridBagLayout());
@@ -250,62 +245,14 @@ public class OverviewPanel extends JPanel {
                 new Insets(0, 0, 0, 0);
 
         graphArea.add(
-                createFutureGraphPlaceholder(),
+                new DataComparisonPanel(schema),
                 constraints
         );
 
         return graphArea;
     }
 
-    /*
-     * This method creates temporary space for a future graph or dashboard widget.
-     */
-    private JPanel createFutureGraphPlaceholder() {
-        JPanel placeholder =
-                new JPanel(new GridBagLayout());
-
-        placeholder.setBackground(Color.WHITE);
-
-        placeholder.setBorder(
-                BorderFactory.createCompoundBorder(
-                        BorderFactory.createLineBorder(
-                                BORDER_COLOR
-                        ),
-                        new EmptyBorder(
-                                15,
-                                15,
-                                15,
-                                15
-                        )
-                )
-        );
-
-        JLabel label = new JLabel(
-                "<html><div style='text-align:center;'>"
-                        + "Future Graph<br>"
-                        + "<span style='font-size:10px;'>"
-                        + "Another graph can be added here later"
-                        + "</span></div></html>"
-        );
-
-        label.setFont(
-                new Font(
-                        "SansSerif",
-                        Font.BOLD,
-                        15
-                )
-        );
-
-        label.setForeground(SECONDARY_TEXT);
-
-        placeholder.add(label);
-
-        return placeholder;
-    }
-
-    /*
-     * This method refreshes the KPI cards and revenue chart together.
-     */
+    // This method refreshes the KPI cards and revenue chart together.
     private void refreshDashboard() {
         kpiPanel.refreshSampleValues();
         revenueChartPanel.refreshChart();

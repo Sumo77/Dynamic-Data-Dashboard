@@ -65,6 +65,55 @@ app.get('/api/schema/introspect', (req, res) => {
   }
 });
 
+// Small helpers used to whitelist table/column names before they're
+// interpolated into SQL. Identifiers can't be bound with `?` like values
+// can, so this check is what keeps the endpoint below injection-safe.
+function tableExists(table) {
+  return !!db.prepare(
+    "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?"
+  ).get(table);
+}
+function columnNames(table) {
+  return db.prepare(`PRAGMA table_info("${table}")`).all().map(c => c.name);
+}
+
+// 0b. Run a measure-grouped-by-dimension/date query, built from whatever
+//     pair of columns the user picked in the two dropdowns. Only handles
+//     the same-table case; a cross-table pairing needs a JOIN through a
+//     foreign key and isn't attempted here.
+app.get('/api/query/compare', (req, res) => {
+  try {
+    const { table, measureColumn, groupColumn, aggFn } = req.query;
+    const ALLOWED_AGG = { SUM: 'SUM', AVG: 'AVG', COUNT: 'COUNT', MIN: 'MIN', MAX: 'MAX' };
+    const fn = ALLOWED_AGG[String(aggFn || 'SUM').toUpperCase()];
+
+    if (!fn) {
+      return res.status(400).json({ success: false, error: `Unsupported aggFn: ${aggFn}` });
+    }
+    if (!tableExists(table)) {
+      return res.status(400).json({ success: false, error: `Unknown table: ${table}` });
+    }
+    const cols = columnNames(table);
+    if (!cols.includes(measureColumn)) {
+      return res.status(400).json({ success: false, error: `Unknown column: ${measureColumn}` });
+    }
+    if (!cols.includes(groupColumn)) {
+      return res.status(400).json({ success: false, error: `Unknown column: ${groupColumn}` });
+    }
+
+    const query = `
+      SELECT "${groupColumn}" AS label, ${fn}("${measureColumn}") AS value
+      FROM "${table}"
+      GROUP BY "${groupColumn}"
+      ORDER BY "${groupColumn}" ASC
+    `;
+    const rows = db.prepare(query).all();
+    res.json({ success: true, data: rows });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // 1. Fetch pre-cached KPI Snapshot data
 app.get('/api/kpis/summary', (req, res) => {
   try {
