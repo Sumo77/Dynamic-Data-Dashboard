@@ -1,13 +1,11 @@
+// KpiPanel.java
+
 package dashboard.gui;
 
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
-import java.util.Random;
 
-/*
- * This class creates and updates the four KPI cards displayed on the Overview page.
- */
 public class KpiPanel extends JPanel {
 
     private static final Color BACKGROUND_COLOR =
@@ -22,50 +20,50 @@ public class KpiPanel extends JPanel {
     private static final Color BORDER_COLOR =
             new Color(226, 232, 240);
 
-    private final Random random = new Random();
+    private final JLabel revenueValueLabel =
+            new JLabel("Loading...");
 
-    private JLabel revenueValueLabel;
-    private JLabel profitValueLabel;
-    private JLabel customersValueLabel;
-    private JLabel productsValueLabel;
+    private final JLabel growthValueLabel =
+            new JLabel("Loading...");
 
-    /*
-     * These are temporary sample values. Cooper can replace them with database
-     * results when the backend service is ready.
-     */
-    private double sampleRevenue = 61_500.00;
-    private double sampleProfit = 16_400.00;
-    private int sampleCustomers = 5_000;
-    private int sampleProducts = 500;
+    private final JLabel profitValueLabel =
+            new JLabel("Loading...");
 
-    /*
-     * This constructor creates the row of KPI cards.
-     */
+    private final JLabel marginValueLabel =
+            new JLabel("Loading...");
+
+    private final JLabel turnoverValueLabel =
+            new JLabel("Loading...");
+
+    private final JLabel retentionValueLabel =
+            new JLabel("Loading...");
+
+    private final JLabel marketingRoiValueLabel =
+            new JLabel("Not Available");
+
     public KpiPanel() {
+
         configurePanel();
         createCards();
-        updateLabels();
     }
 
-    /*
-     * This method configures the layout used by the KPI cards.
-     */
     private void configurePanel() {
+
         setLayout(
-                new GridLayout(1, 4, 15, 0)
+                new GridLayout(
+                        2,
+                        4,
+                        12,
+                        12
+                )
         );
 
-        setBackground(BACKGROUND_COLOR);
+        setBackground(
+                BACKGROUND_COLOR
+        );
     }
 
-    /*
-     * This method creates all four KPI cards.
-     */
     private void createCards() {
-        revenueValueLabel = new JLabel();
-        profitValueLabel = new JLabel();
-        customersValueLabel = new JLabel();
-        productsValueLabel = new JLabel();
 
         add(
                 createKpiCard(
@@ -76,71 +74,107 @@ public class KpiPanel extends JPanel {
 
         add(
                 createKpiCard(
-                        "Total Profit",
+                        "Revenue Growth Rate",
+                        growthValueLabel
+                )
+        );
+
+        add(
+                createKpiCard(
+                        "Profit",
                         profitValueLabel
                 )
         );
 
         add(
                 createKpiCard(
-                        "Customers",
-                        customersValueLabel
+                        "Profit Margin",
+                        marginValueLabel
                 )
         );
 
         add(
                 createKpiCard(
-                        "Products",
-                        productsValueLabel
+                        "Inventory Turnover",
+                        turnoverValueLabel
                 )
         );
+
+        add(
+                createKpiCard(
+                        "Customer Retention",
+                        retentionValueLabel
+                )
+        );
+
+        add(
+                createKpiCard(
+                        "Marketing ROI",
+                        marketingRoiValueLabel
+                )
+        );
+
+        JPanel emptyPanel =
+                new JPanel();
+
+        emptyPanel.setBackground(
+                BACKGROUND_COLOR
+        );
+
+        add(emptyPanel);
     }
 
-    /*
-     * This method creates one reusable KPI card.
-     */
     private JPanel createKpiCard(
             String title,
             JLabel valueLabel
     ) {
-        JPanel card = new JPanel();
+
+        JPanel card =
+                new JPanel();
 
         card.setLayout(
-                new BoxLayout(card, BoxLayout.Y_AXIS)
+                new BoxLayout(
+                        card,
+                        BoxLayout.Y_AXIS
+                )
         );
 
-        card.setBackground(Color.WHITE);
-
-        card.setPreferredSize(
-                new Dimension(0, 85)
+        card.setBackground(
+                Color.WHITE
         );
 
         card.setBorder(
                 BorderFactory.createCompoundBorder(
+
                         BorderFactory.createLineBorder(
                                 BORDER_COLOR
                         ),
+
                         new EmptyBorder(
+                                12,
                                 15,
-                                18,
-                                15,
-                                18
+                                12,
+                                15
                         )
                 )
         );
 
         JLabel titleLabel =
-                new JLabel(title);
+                new JLabel(
+                        title
+                );
 
         titleLabel.setFont(
                 new Font(
                         "SansSerif",
                         Font.PLAIN,
-                        13
+                        12
                 )
         );
 
-        titleLabel.setForeground(SECONDARY_TEXT);
+        titleLabel.setForeground(
+                SECONDARY_TEXT
+        );
 
         titleLabel.setAlignmentX(
                 Component.LEFT_ALIGNMENT
@@ -150,87 +184,126 @@ public class KpiPanel extends JPanel {
                 new Font(
                         "SansSerif",
                         Font.BOLD,
-                        23
+                        20
                 )
         );
 
-        valueLabel.setForeground(PRIMARY_TEXT);
+        valueLabel.setForeground(
+                PRIMARY_TEXT
+        );
 
         valueLabel.setAlignmentX(
                 Component.LEFT_ALIGNMENT
         );
 
-        card.add(titleLabel);
         card.add(
-                Box.createVerticalStrut(8)
+                titleLabel
         );
-        card.add(valueLabel);
+
+        card.add(
+                Box.createVerticalStrut(
+                        7
+                )
+        );
+
+        card.add(
+                valueLabel
+        );
 
         return card;
     }
 
     /*
-     * This method makes small changes to the sample values when the dashboard
-     * is refreshed. Cooper can replace this with a backend service call later.
+     * Updates the KPI cards using REAL values from the backend.
      */
-    public void refreshSampleValues() {
-        sampleRevenue +=
-                random.nextDouble() * 2_000 - 1_000;
+    public void updateKpis(
+            double revenue,
+            double growth,
+            double profit,
+            double margin,
+            double turnover,
+            double retention
+    ) {
 
-        sampleProfit +=
-                random.nextDouble() * 800 - 400;
-
-        sampleCustomers +=
-                random.nextInt(21) - 10;
-
-        sampleProducts +=
-                random.nextInt(7) - 3;
-
-        sampleRevenue =
-                Math.max(50_000, sampleRevenue);
-
-        sampleProfit =
-                Math.max(10_000, sampleProfit);
-
-        sampleCustomers =
-                Math.max(4_500, sampleCustomers);
-
-        sampleProducts =
-                Math.max(450, sampleProducts);
-
-        updateLabels();
-    }
-
-    /*
-     * This method displays the current KPI values inside their labels.
-     */
-    private void updateLabels() {
         revenueValueLabel.setText(
                 String.format(
                         "$%,.2f",
-                        sampleRevenue
+                        revenue
+                )
+        );
+
+        growthValueLabel.setText(
+                String.format(
+                        "%.2f%%",
+                        growth
                 )
         );
 
         profitValueLabel.setText(
                 String.format(
                         "$%,.2f",
-                        sampleProfit
+                        profit
                 )
         );
 
-        customersValueLabel.setText(
+        marginValueLabel.setText(
                 String.format(
-                        "%,d",
-                        sampleCustomers
+                        "%.2f%%",
+                        margin
                 )
         );
 
-        productsValueLabel.setText(
+        turnoverValueLabel.setText(
                 String.format(
-                        "%,d",
-                        sampleProducts
+                        "%.2f",
+                        turnover
                 )
+        );
+
+        retentionValueLabel.setText(
+                String.format(
+                        "%.2f%%",
+                        retention
+                )
+        );
+
+        /*
+         * Backend does not currently provide enough
+         * information to calculate Marketing ROI.
+         */
+        marketingRoiValueLabel.setText(
+                "Not Available"
+        );
+    }
+
+    public void showError() {
+
+        revenueValueLabel.setText(
+                "Unavailable"
+        );
+
+        growthValueLabel.setText(
+                "Unavailable"
+        );
+
+        profitValueLabel.setText(
+                "Unavailable"
+        );
+
+        marginValueLabel.setText(
+                "Unavailable"
+        );
+
+        turnoverValueLabel.setText(
+                "Unavailable"
+        );
+
+        retentionValueLabel.setText(
+                "Unavailable"
+        );
+
+        marketingRoiValueLabel.setText(
+                "Unavailable"
         );
     }
 }

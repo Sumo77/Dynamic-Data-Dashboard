@@ -1,5 +1,9 @@
 package dashboard.gui;
 
+import dashboard.database.ApiClient;
+import dashboard.database.SchemaIntrospector;
+import dashboard.database.SchemaIntrospector.ComparisonRow;
+
 import org.jfree.chart.ChartFactory;
 import org.jfree.chart.ChartPanel;
 import org.jfree.chart.JFreeChart;
@@ -10,10 +14,31 @@ import org.jfree.data.category.DefaultCategoryDataset;
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
+
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.time.format.DateTimeFormatter;
+
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /*
- * This class creates and controls the interactive revenue bar chart.
+ * This class creates the Revenue Trend graph.
+ *
+ * IMPORTANT:
+ * There is NO sample data in this class.
+ *
+ * Revenue values are loaded from the real backend using:
+ *
+ * /api/query/compare
+ *
+ * The backend returns SUM(sales.revenue) grouped by sales.order_date.
+ *
+ * The Java GUI then groups those real database rows into:
+ * - Monthly
+ * - Quarterly
+ * - Yearly
  */
 public class RevenueChartPanel extends JPanel {
 
@@ -29,40 +54,63 @@ public class RevenueChartPanel extends JPanel {
     private static final Color BORDER_COLOR =
             new Color(226, 232, 240);
 
+    /*
+     * JFreeChart dataset.
+     */
     private DefaultCategoryDataset revenueDataset;
 
-    private JComboBox<String> scopeFilter;
-    private JComboBox<Integer> yearFilter;
-
+    /*
+     * Status text underneath the graph.
+     */
     private JLabel statusLabel;
 
     /*
-     * This constructor creates the chart, filters and initial sample dataset.
+     * Current values received from the global Overview filter.
+     */
+    private Integer selectedYear = 2023;
+    private String selectedScope = "Monthly";
+    private String selectedPeriod = "January";
+    private String selectedRegion = "All Regions";
+
+    /*
+     * Creates the chart.
      */
     public RevenueChartPanel() {
+
         configurePanel();
         createChartLayout();
     }
 
     /*
-     * This method configures the chart card.
+     * Configures the outer chart card.
      */
     private void configurePanel() {
+
         setLayout(
-                new BorderLayout(0, 10)
+                new BorderLayout(
+                        0,
+                        10
+                )
         );
 
-        setBackground(Color.WHITE);
+        setBackground(
+                Color.WHITE
+        );
 
         setPreferredSize(
-                new Dimension(600, 350)
+                new Dimension(
+                        600,
+                        350
+                )
         );
 
         setBorder(
                 BorderFactory.createCompoundBorder(
+
                         BorderFactory.createLineBorder(
                                 BORDER_COLOR
                         ),
+
                         new EmptyBorder(
                                 15,
                                 16,
@@ -74,11 +122,15 @@ public class RevenueChartPanel extends JPanel {
     }
 
     /*
-     * This method creates the chart controls, JFreeChart and status label.
+     * Creates the chart and its title.
+     *
+     * The separate graph filters have been removed because the Overview
+     * page now has one global filter controlling everything.
      */
     private void createChartLayout() {
+
         add(
-                createHeaderAndFilters(),
+                createHeader(),
                 BorderLayout.NORTH
         );
 
@@ -93,14 +145,26 @@ public class RevenueChartPanel extends JPanel {
                         revenueDataset
                 );
 
-        styleChart(revenueChart);
+        styleChart(
+                revenueChart
+        );
 
         ChartPanel chartPanel =
-                new ChartPanel(revenueChart);
+                new ChartPanel(
+                        revenueChart
+                );
 
-        chartPanel.setBackground(Color.WHITE);
-        chartPanel.setBorder(null);
-        chartPanel.setMouseWheelEnabled(false);
+        chartPanel.setBackground(
+                Color.WHITE
+        );
+
+        chartPanel.setBorder(
+                null
+        );
+
+        chartPanel.setMouseWheelEnabled(
+                false
+        );
 
         add(
                 chartPanel,
@@ -109,7 +173,7 @@ public class RevenueChartPanel extends JPanel {
 
         statusLabel =
                 new JLabel(
-                        "Displaying monthly sample data"
+                        "Waiting for dashboard filter..."
                 );
 
         statusLabel.setFont(
@@ -120,38 +184,41 @@ public class RevenueChartPanel extends JPanel {
                 )
         );
 
-        statusLabel.setForeground(SECONDARY_TEXT);
+        statusLabel.setForeground(
+                SECONDARY_TEXT
+        );
 
         add(
                 statusLabel,
                 BorderLayout.SOUTH
         );
-
-        refreshChart();
     }
 
     /*
-     * This method creates the chart title and dropdown filters.
+     * Creates the chart title.
+     *
+     * No chart-specific dropdowns are needed anymore.
      */
-    private JPanel createHeaderAndFilters() {
+    private JPanel createHeader() {
+
         JPanel header =
-                new JPanel(new BorderLayout(10, 6));
+                new JPanel();
 
-        header.setBackground(Color.WHITE);
-
-        JPanel titleArea = new JPanel();
-
-        titleArea.setLayout(
+        header.setLayout(
                 new BoxLayout(
-                        titleArea,
+                        header,
                         BoxLayout.Y_AXIS
                 )
         );
 
-        titleArea.setBackground(Color.WHITE);
+        header.setBackground(
+                Color.WHITE
+        );
 
         JLabel chartTitle =
-                new JLabel("Revenue Trend");
+                new JLabel(
+                        "Revenue Trend"
+                );
 
         chartTitle.setFont(
                 new Font(
@@ -161,7 +228,9 @@ public class RevenueChartPanel extends JPanel {
                 )
         );
 
-        chartTitle.setForeground(PRIMARY_TEXT);
+        chartTitle.setForeground(
+                PRIMARY_TEXT
+        );
 
         chartTitle.setAlignmentX(
                 Component.LEFT_ALIGNMENT
@@ -169,7 +238,7 @@ public class RevenueChartPanel extends JPanel {
 
         JLabel description =
                 new JLabel(
-                        "Revenue by selected time period"
+                        "Revenue from the live sales database"
                 );
 
         description.setFont(
@@ -180,243 +249,603 @@ public class RevenueChartPanel extends JPanel {
                 )
         );
 
-        description.setForeground(SECONDARY_TEXT);
+        description.setForeground(
+                SECONDARY_TEXT
+        );
 
         description.setAlignmentX(
                 Component.LEFT_ALIGNMENT
         );
 
-        titleArea.add(chartTitle);
-        titleArea.add(
-                Box.createVerticalStrut(2)
-        );
-        titleArea.add(description);
-
-        JPanel filters =
-                new JPanel(
-                        new FlowLayout(
-                                FlowLayout.RIGHT,
-                                7,
-                                0
-                        )
-                );
-
-        filters.setBackground(Color.WHITE);
-
-        JLabel scopeLabel =
-                new JLabel("Scope:");
-
-        scopeLabel.setForeground(PRIMARY_TEXT);
-
-        scopeFilter = new JComboBox<>(
-                new String[]{
-                        "Weekly",
-                        "Monthly",
-                        "Quarterly",
-                        "Yearly"
-                }
-        );
-
-        scopeFilter.setSelectedItem("Monthly");
-
-        JLabel yearLabel =
-                new JLabel("Year:");
-
-        yearLabel.setForeground(PRIMARY_TEXT);
-
-        int currentYear =
-                LocalDate.now().getYear();
-
-        yearFilter = new JComboBox<>(
-                new Integer[]{
-                        currentYear,
-                        currentYear - 1,
-                        currentYear - 2,
-                        currentYear - 3
-                }
-        );
-
-        scopeFilter.addActionListener(event ->
-                refreshChart()
-        );
-
-        yearFilter.addActionListener(event ->
-                refreshChart()
-        );
-
-        filters.add(scopeLabel);
-        filters.add(scopeFilter);
-        filters.add(yearLabel);
-        filters.add(yearFilter);
-
         header.add(
-                titleArea,
-                BorderLayout.NORTH
+                chartTitle
         );
 
         header.add(
-                filters,
-                BorderLayout.SOUTH
+                Box.createVerticalStrut(
+                        2
+                )
+        );
+
+        header.add(
+                description
         );
 
         return header;
     }
 
     /*
-     * This method refreshes the chart using the currently selected filters.
+     * Called by OverviewPanel whenever Apply Filters is clicked.
      */
-    public void refreshChart() {
-        if (revenueDataset == null
-                || scopeFilter == null
-                || yearFilter == null) {
+    public void applyFilters(
+            Integer year,
+            String scope,
+            String period,
+            String region
+    ) {
+
+        if (year == null
+                || scope == null
+                || period == null
+                || region == null) {
+
             return;
         }
 
-        String selectedScope =
-                (String) scopeFilter.getSelectedItem();
+        selectedYear =
+                year;
 
-        Integer selectedYear =
-                (Integer) yearFilter.getSelectedItem();
+        selectedScope =
+                scope;
 
-        if (selectedScope == null
-                || selectedYear == null) {
-            return;
-        }
+        selectedPeriod =
+                period;
+
+        selectedRegion =
+                region;
 
         /*
-         * Cooper can replace this sample method with a backend service call.
+         * Now query the REAL database.
          */
-        loadSampleRevenueData(
-                selectedScope,
-                selectedYear
-        );
+        refreshChart();
+    }
 
-        if (statusLabel != null) {
+    /*
+     * Reloads real revenue information from the backend.
+     */
+    public void refreshChart() {
+
+        if (revenueDataset == null) {
+            return;
+        }
+
+        try {
+
             statusLabel.setText(
-                    "Displaying "
-                            + selectedScope.toLowerCase()
-                            + " data for "
-                            + selectedYear
+                    "Loading revenue data..."
+            );
+
+            /*
+             * Ask the real backend to calculate:
+             *
+             * SUM(revenue)
+             * GROUP BY order_date
+             *
+             * from the SALES table.
+             */
+            String json =
+                    ApiClient.getData(
+                            "api/query/compare",
+                            Map.of(
+                                    "table",
+                                    "sales",
+                                    "measureColumn",
+                                    "revenue",
+                                    "groupColumn",
+                                    "order_date",
+                                    "aggFn",
+                                    "SUM"
+                            )
+                    );
+
+            System.out.println(
+                    "Revenue API response:"
+            );
+
+            System.out.println(
+                    json
+            );
+
+            /*
+             * SchemaIntrospector already knows how to parse
+             * /api/query/compare results.
+             */
+            List<ComparisonRow> rows =
+                    SchemaIntrospector.parseCompareRows(
+                            json
+                    );
+
+            /*
+             * Build the JFreeChart using only real rows.
+             */
+            loadDatabaseRevenue(
+                    rows
+            );
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+
+            revenueDataset.clear();
+
+            statusLabel.setText(
+                    "Unable to load revenue data."
             );
         }
     }
 
     /*
-     * This method contains all temporary chart data in one place.
+     * Converts real daily database revenue rows into the selected
+     * dashboard time scope.
      */
-    private void loadSampleRevenueData(
-            String selectedScope,
-            int selectedYear
+    private void loadDatabaseRevenue(
+            List<ComparisonRow> rows
     ) {
+
         revenueDataset.clear();
 
-        switch (selectedScope) {
-            case "Weekly" -> {
-                addValue(12_000, "Week 1");
-                addValue(15_750, "Week 2");
-                addValue(14_100, "Week 3");
-                addValue(18_900, "Week 4");
+        /*
+         * This keeps the chart buckets in the correct order.
+         */
+        Map<String, Double> totals =
+                new LinkedHashMap<>();
+
+        /*
+         * Create the required buckets before reading the data.
+         */
+        createEmptyBuckets(
+                totals
+        );
+
+        DateTimeFormatter databaseDateFormat =
+                DateTimeFormatter.ofPattern(
+                        "yyyy-MM-dd"
+                );
+
+        /*
+         * Read every real revenue row returned by SQLite.
+         */
+        for (ComparisonRow row : rows) {
+
+            try {
+
+                LocalDate orderDate =
+                        LocalDate.parse(
+                                row.label,
+                                databaseDateFormat
+                        );
+
+                /*
+                 * Only use rows from the selected year.
+                 */
+                if (orderDate.getYear()
+                        != selectedYear) {
+
+                    continue;
+                }
+
+                /*
+                 * Work out which chart bucket this database row belongs to.
+                 */
+                String bucket =
+                        getBucketForDate(
+                                orderDate
+                        );
+
+                if (bucket == null) {
+                    continue;
+                }
+
+                totals.put(
+                        bucket,
+                        totals.getOrDefault(
+                                bucket,
+                                0.0
+                        )
+                                + row.value
+                );
+
+            } catch (Exception dateException) {
+
+                /*
+                 * Ignore rows whose date is invalid.
+                 */
+                System.err.println(
+                        "Unable to parse order date: "
+                                + row.label
+                );
             }
+        }
+
+        /*
+         * Put the real aggregated values into JFreeChart.
+         */
+        for (
+                Map.Entry<String, Double> entry
+                : totals.entrySet()
+        ) {
+
+            revenueDataset.addValue(
+                    entry.getValue(),
+                    "Revenue",
+                    entry.getKey()
+            );
+        }
+
+        updateStatus(
+                totals
+        );
+    }
+
+    /*
+     * Creates empty chart buckets depending on the selected scope.
+     */
+    private void createEmptyBuckets(
+            Map<String, Double> totals
+    ) {
+
+        switch (selectedScope) {
 
             case "Monthly" -> {
-                String[] months = {
-                        "Jan", "Feb", "Mar", "Apr",
-                        "May", "Jun", "Jul", "Aug",
-                        "Sep", "Oct", "Nov", "Dec"
-                };
 
-                double[] values = {
-                        12_000, 16_000, 14_500, 19_000,
-                        22_000, 25_000, 23_000, 27_500,
-                        26_000, 29_000, 31_000, 34_000
-                };
+                /*
+                 * The global Period filter selects a specific month.
+                 *
+                 * Show the weeks inside that month.
+                 */
+                totals.put(
+                        "Week 1",
+                        0.0
+                );
 
-                for (int index = 0;
-                     index < months.length;
-                     index++) {
+                totals.put(
+                        "Week 2",
+                        0.0
+                );
 
-                    addValue(
-                            values[index],
-                            months[index]
+                totals.put(
+                        "Week 3",
+                        0.0
+                );
+
+                totals.put(
+                        "Week 4",
+                        0.0
+                );
+
+                totals.put(
+                        "Week 5",
+                        0.0
+                );
+            }
+
+            case "Quarterly" -> {
+
+                /*
+                 * The selected quarter is split into its three months.
+                 */
+                int quarter =
+                        quarterNumber(
+                                selectedPeriod
+                        );
+
+                int firstMonth =
+                        ((quarter - 1) * 3) + 1;
+
+                for (
+                        int month = firstMonth;
+                        month < firstMonth + 3;
+                        month++
+                ) {
+
+                    totals.put(
+                            monthName(
+                                    month
+                            ),
+                            0.0
                     );
                 }
             }
 
-            case "Quarterly" -> {
-                addValue(42_500, "Q1");
-                addValue(66_000, "Q2");
-                addValue(76_500, "Q3");
-                addValue(94_000, "Q4");
-            }
-
             case "Yearly" -> {
-                addValue(
-                        235_000,
-                        String.valueOf(selectedYear - 3)
-                );
 
-                addValue(
-                        278_000,
-                        String.valueOf(selectedYear - 2)
-                );
+                /*
+                 * Full year shows every month.
+                 */
+                for (
+                        int month = 1;
+                        month <= 12;
+                        month++
+                ) {
 
-                addValue(
-                        315_000,
-                        String.valueOf(selectedYear - 1)
-                );
-
-                addValue(
-                        342_000,
-                        String.valueOf(selectedYear)
-                );
+                    totals.put(
+                            monthName(
+                                    month
+                            ),
+                            0.0
+                    );
+                }
             }
 
             default -> throw new IllegalArgumentException(
-                    "Unknown scope: " + selectedScope
+                    "Unknown scope: "
+                            + selectedScope
             );
         }
     }
 
     /*
-     * This small helper method keeps repeated dataset code easier to read.
+     * Works out which bucket a database date belongs in.
      */
-    private void addValue(
-            double value,
-            String period
+    private String getBucketForDate(
+            LocalDate date
     ) {
-        revenueDataset.addValue(
-                value,
-                "Revenue",
-                period
-        );
+
+        switch (selectedScope) {
+
+            case "Monthly" -> {
+
+                int selectedMonth =
+                        monthNumber(
+                                selectedPeriod
+                        );
+
+                if (date.getMonthValue()
+                        != selectedMonth) {
+
+                    return null;
+                }
+
+                int day =
+                        date.getDayOfMonth();
+
+                int week =
+                        ((day - 1) / 7) + 1;
+
+                /*
+                 * Prevent anything beyond Week 5.
+                 */
+                week =
+                        Math.min(
+                                week,
+                                5
+                        );
+
+                return "Week "
+                        + week;
+            }
+
+            case "Quarterly" -> {
+
+                int selectedQuarter =
+                        quarterNumber(
+                                selectedPeriod
+                        );
+
+                int dateQuarter =
+                        ((date.getMonthValue() - 1)
+                                / 3)
+                                + 1;
+
+                if (dateQuarter
+                        != selectedQuarter) {
+
+                    return null;
+                }
+
+                return monthName(
+                        date.getMonthValue()
+                );
+            }
+
+            case "Yearly" -> {
+
+                return monthName(
+                        date.getMonthValue()
+                );
+            }
+
+            default -> {
+
+                return null;
+            }
+        }
     }
 
     /*
-     * This method applies the dashboard styling to the bar chart.
+     * Converts January -> 1, February -> 2, etc.
+     */
+    private int monthNumber(
+            String month
+    ) {
+
+        return switch (month) {
+
+            case "January" -> 1;
+            case "February" -> 2;
+            case "March" -> 3;
+            case "April" -> 4;
+            case "May" -> 5;
+            case "June" -> 6;
+            case "July" -> 7;
+            case "August" -> 8;
+            case "September" -> 9;
+            case "October" -> 10;
+            case "November" -> 11;
+            case "December" -> 12;
+
+            default -> 1;
+        };
+    }
+
+    /*
+     * Converts month number into short month label.
+     */
+    private String monthName(
+            int month
+    ) {
+
+        return YearMonth.of(
+                        selectedYear,
+                        month
+                )
+                .getMonth()
+                .toString()
+                .substring(
+                        0,
+                        3
+                );
+    }
+
+    /*
+     * Converts Q1/Q2/Q3/Q4 into an integer.
+     */
+    private int quarterNumber(
+            String quarter
+    ) {
+
+        return switch (quarter) {
+
+            case "Q1" -> 1;
+            case "Q2" -> 2;
+            case "Q3" -> 3;
+            case "Q4" -> 4;
+
+            default -> 1;
+        };
+    }
+
+    /*
+     * Updates the message under the chart.
+     */
+    private void updateStatus(
+            Map<String, Double> totals
+    ) {
+
+        double total =
+                0.0;
+
+        for (
+                double value
+                : totals.values()
+        ) {
+
+            total += value;
+        }
+
+        String filterDescription;
+
+        switch (selectedScope) {
+
+            case "Monthly" ->
+                    filterDescription =
+                            selectedPeriod
+                                    + " "
+                                    + selectedYear;
+
+            case "Quarterly" ->
+                    filterDescription =
+                            selectedPeriod
+                                    + " "
+                                    + selectedYear;
+
+            case "Yearly" ->
+                    filterDescription =
+                            "Full Year "
+                                    + selectedYear;
+
+            default ->
+                    filterDescription =
+                            String.valueOf(
+                                    selectedYear
+                            );
+        }
+
+        /*
+         * Region is currently shown in the filter description,
+         * but the existing compare API does not support combining
+         * order_date + region in one request yet.
+         */
+        if (!"All Regions".equals(
+                selectedRegion
+        )) {
+
+            statusLabel.setText(
+                    filterDescription
+                            + " | Region filtering requires backend support"
+            );
+
+        } else {
+
+            statusLabel.setText(
+                    String.format(
+                            "%s | Total Revenue: $%,.2f",
+                            filterDescription,
+                            total
+                    )
+            );
+        }
+    }
+
+    /*
+     * Styling for the JFreeChart.
      */
     private void styleChart(
             JFreeChart chart
     ) {
-        chart.setBackgroundPaint(Color.WHITE);
-        chart.setBorderVisible(false);
+
+        chart.setBackgroundPaint(
+                Color.WHITE
+        );
+
+        chart.setBorderVisible(
+                false
+        );
 
         CategoryPlot plot =
                 chart.getCategoryPlot();
 
-        plot.setBackgroundPaint(Color.WHITE);
-        plot.setOutlineVisible(false);
-        plot.setRangeGridlinePaint(BORDER_COLOR);
-        plot.setDomainGridlinesVisible(false);
+        plot.setBackgroundPaint(
+                Color.WHITE
+        );
+
+        plot.setOutlineVisible(
+                false
+        );
+
+        plot.setRangeGridlinePaint(
+                BORDER_COLOR
+        );
+
+        plot.setDomainGridlinesVisible(
+                false
+        );
 
         BarRenderer renderer =
-                (BarRenderer) plot.getRenderer();
+                (BarRenderer)
+                        plot.getRenderer();
 
         renderer.setSeriesPaint(
                 0,
                 ACTIVE_COLOR
         );
 
-        renderer.setMaximumBarWidth(0.09);
-        renderer.setShadowVisible(false);
+        renderer.setMaximumBarWidth(
+                0.09
+        );
+
+        renderer.setShadowVisible(
+                false
+        );
     }
 }
