@@ -18,7 +18,6 @@ import java.awt.*;
 
 import java.time.LocalDate;
 import java.time.format.TextStyle;
-import java.time.temporal.WeekFields;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -137,13 +136,19 @@ public class RevenueOverTimeChart extends JPanel {
                 Component.LEFT_ALIGNMENT
         );
 
-        titlePanel.add(title);
-
         titlePanel.add(
-                Box.createVerticalStrut(2)
+                title
         );
 
-        titlePanel.add(description);
+        titlePanel.add(
+                Box.createVerticalStrut(
+                        2
+                )
+        );
+
+        titlePanel.add(
+                description
+        );
 
         add(
                 titlePanel,
@@ -180,9 +185,6 @@ public class RevenueOverTimeChart extends JPanel {
                 BORDER_COLOR
         );
 
-        /*
-         * Line styling.
-         */
         LineAndShapeRenderer renderer =
                 new LineAndShapeRenderer(
                         true,
@@ -205,10 +207,10 @@ public class RevenueOverTimeChart extends JPanel {
                 renderer
         );
 
-        CategoryAxis domainAxis =
+        CategoryAxis axis =
                 plot.getDomainAxis();
 
-        domainAxis.setMaximumCategoryLabelLines(
+        axis.setMaximumCategoryLabelLines(
                 1
         );
 
@@ -235,16 +237,16 @@ public class RevenueOverTimeChart extends JPanel {
                         "Waiting for sales data..."
                 );
 
-        statusLabel.setForeground(
-                SECONDARY_TEXT
-        );
-
         statusLabel.setFont(
                 new Font(
                         "SansSerif",
                         Font.PLAIN,
                         12
                 )
+        );
+
+        statusLabel.setForeground(
+                SECONDARY_TEXT
         );
 
         add(
@@ -254,11 +256,17 @@ public class RevenueOverTimeChart extends JPanel {
     }
 
     /*
-     * Applies Year + Scope + Period.
+     * Applies:
+     *
+     * Year
+     * Scope
+     * Month (only used for Weekly)
+     * Period
      */
     public void applyFilters(
             int selectedYear,
             String scope,
+            String selectedMonth,
             String period
     ) {
 
@@ -284,63 +292,49 @@ public class RevenueOverTimeChart extends JPanel {
 
             List<ComparisonRow> rows =
                     SchemaIntrospector
-                            .parseCompareRows(json);
-
-            Map<String, Double> totals =
-                    new LinkedHashMap<>();
+                            .parseCompareRows(
+                                    json
+                            );
 
             dataset.clear();
 
-            /*
-             * ISO week handling.
-             */
-            WeekFields weekFields =
-                    WeekFields.ISO;
-
-            int selectedWeek =
-                    -1;
-
-            if ("Weekly".equals(scope)) {
-
-                selectedWeek =
-                        Integer.parseInt(
-                                period.replace(
-                                        "Week ",
-                                        ""
-                                )
-                        );
-            }
+            Map<String, Double> totals =
+                    new LinkedHashMap<>();
 
             for (ComparisonRow row : rows) {
 
                 LocalDate date;
 
                 try {
+
                     date =
                             LocalDate.parse(
                                     row.label
                             );
 
-                } catch (Exception dateError) {
+                } catch (Exception e) {
+
                     continue;
                 }
 
                 /*
-                 * YEAR
+                 * YEAR FILTER
                  */
                 if (
                         date.getYear()
-                        != selectedYear
+                                != selectedYear
                 ) {
                     continue;
                 }
 
                 /*
-                 * ===================
+                 * ==========================
                  * YEARLY
-                 * ===================
+                 * ==========================
                  */
-                if ("Yearly".equals(scope)) {
+                if (
+                        "Yearly".equals(scope)
+                ) {
 
                     String label =
                             date.getMonth()
@@ -359,17 +353,19 @@ public class RevenueOverTimeChart extends JPanel {
                 }
 
                 /*
-                 * ===================
+                 * ==========================
                  * QUARTERLY
-                 * ===================
+                 * ==========================
                  */
                 else if (
                         "Quarterly".equals(scope)
                 ) {
 
-                    int requestedQuarter =
+                    int selectedQuarter =
                             Integer.parseInt(
-                                    period.substring(1)
+                                    period.substring(
+                                            1
+                                    )
                             );
 
                     int dateQuarter =
@@ -379,11 +375,12 @@ public class RevenueOverTimeChart extends JPanel {
                                                     - 1
                                     )
                                             / 3
-                            ) + 1;
+                            )
+                                    + 1;
 
                     if (
-                            dateQuarter
-                            != requestedQuarter
+                            selectedQuarter
+                                    != dateQuarter
                     ) {
                         continue;
                     }
@@ -405,15 +402,15 @@ public class RevenueOverTimeChart extends JPanel {
                 }
 
                 /*
-                 * ===================
+                 * ==========================
                  * MONTHLY
-                 * ===================
+                 * ==========================
                  */
                 else if (
                         "Monthly".equals(scope)
                 ) {
 
-                    String fullMonth =
+                    String currentMonth =
                             date.getMonth()
                                     .getDisplayName(
                                             TextStyle.FULL,
@@ -421,13 +418,15 @@ public class RevenueOverTimeChart extends JPanel {
                                     );
 
                     if (
-                            !fullMonth.equals(period)
+                            !currentMonth.equals(
+                                    period
+                            )
                     ) {
                         continue;
                     }
 
                     /*
-                     * Show each day of the month.
+                     * Show each day of selected month.
                      */
                     String label =
                             String.valueOf(
@@ -444,43 +443,86 @@ public class RevenueOverTimeChart extends JPanel {
                 }
 
                 /*
-                 * ===================
+                 * ==========================
                  * WEEKLY
-                 * ===================
+                 * ==========================
                  */
                 else if (
                         "Weekly".equals(scope)
                 ) {
 
-                    int rowWeek =
-                            date.get(
-                                    weekFields.weekOfWeekBasedYear()
-                            );
-
-                    int weekYear =
-                            date.get(
-                                    weekFields.weekBasedYear()
-                            );
-
-                    /*
-                     * Keep the ISO week in the
-                     * selected week-based year.
-                     */
-                    if (
-                            rowWeek != selectedWeek
-                                    || weekYear
-                                    != selectedYear
-                    ) {
-
+                    if (selectedMonth == null) {
                         continue;
                     }
 
+                    String currentMonth =
+                            date.getMonth()
+                                    .getDisplayName(
+                                            TextStyle.FULL,
+                                            Locale.ENGLISH
+                                    );
+
+                    /*
+                     * Date must be inside the
+                     * month selected by user.
+                     */
+                    if (
+                            !currentMonth.equals(
+                                    selectedMonth
+                            )
+                    ) {
+                        continue;
+                    }
+
+                    int selectedWeek =
+                            Integer.parseInt(
+                                    period.replace(
+                                            "Week ",
+                                            ""
+                                    )
+                            );
+
+                    int day =
+                            date.getDayOfMonth();
+
+                    /*
+                     * Week within selected month.
+                     *
+                     * 1-7   = Week 1
+                     * 8-14  = Week 2
+                     * 15-21 = Week 3
+                     * 22-28 = Week 4
+                     * 29+   = Week 5
+                     */
+                    int dateWeek =
+                            (
+                                    (day - 1)
+                                            / 7
+                            )
+                                    + 1;
+
+                    if (
+                            dateWeek
+                                    != selectedWeek
+                    ) {
+                        continue;
+                    }
+
+                    /*
+                     * Show actual weekday + date.
+                     *
+                     * Mon 8
+                     * Tue 9
+                     * Wed 10
+                     */
                     String label =
                             date.getDayOfWeek()
                                     .getDisplayName(
                                             TextStyle.SHORT,
                                             Locale.ENGLISH
-                                    );
+                                    )
+                                    + " "
+                                    + date.getDayOfMonth();
 
                     totals.put(
                             label,
@@ -493,8 +535,8 @@ public class RevenueOverTimeChart extends JPanel {
             }
 
             /*
-             * Put filtered database values
-             * into the JFreeChart dataset.
+             * ADD REAL FILTERED DATA
+             * TO JFREECHART
              */
             for (
                     Map.Entry<String, Double> entry
@@ -508,15 +550,26 @@ public class RevenueOverTimeChart extends JPanel {
                 );
             }
 
+            /*
+             * STATUS MESSAGE
+             */
             if (totals.isEmpty()) {
 
                 statusLabel.setText(
-                        "No sales data found for "
-                                + selectedYear
+                        "No sales data found for selected filter"
+                );
+
+            } else if (
+                    "Weekly".equals(scope)
+            ) {
+
+                statusLabel.setText(
+                        selectedYear
                                 + " • "
-                                + scope
+                                + selectedMonth
                                 + " • "
                                 + period
+                                + " • Live sales data"
                 );
 
             } else {
@@ -538,7 +591,7 @@ public class RevenueOverTimeChart extends JPanel {
             dataset.clear();
 
             statusLabel.setText(
-                    "Unable to load revenue data"
+                    "Unable to load sales revenue"
             );
         }
     }

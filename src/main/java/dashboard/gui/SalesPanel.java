@@ -26,13 +26,15 @@ public class SalesPanel extends JPanel {
 
     private JComboBox<Integer> yearFilter;
     private JComboBox<String> scopeFilter;
+    private JComboBox<String> monthFilter;
     private JComboBox<String> periodFilter;
+
+    private JLabel monthLabel;
 
     private RevenueOverTimeChart revenueOverTimeChart;
     private RevenueByRegionChart revenueByRegionChart;
 
     public SalesPanel() {
-
         configurePanel();
         createLayout();
     }
@@ -40,7 +42,10 @@ public class SalesPanel extends JPanel {
     private void configurePanel() {
 
         setLayout(
-                new BorderLayout(0, 15)
+                new BorderLayout(
+                        0,
+                        15
+                )
         );
 
         setBackground(
@@ -59,15 +64,12 @@ public class SalesPanel extends JPanel {
 
     private void createLayout() {
 
-        /*
-         * ============================
-         * TOP SECTION
-         * ============================
-         */
-
         JPanel topSection =
                 new JPanel(
-                        new BorderLayout(0, 12)
+                        new BorderLayout(
+                                0,
+                                12
+                        )
                 );
 
         topSection.setBackground(
@@ -90,11 +92,8 @@ public class SalesPanel extends JPanel {
         );
 
         /*
-         * ============================
-         * CHARTS
-         * ============================
+         * CREATE CHARTS
          */
-
         revenueOverTimeChart =
                 new RevenueOverTimeChart();
 
@@ -138,11 +137,8 @@ public class SalesPanel extends JPanel {
         );
 
         /*
-         * ============================
-         * VERTICAL CHART LAYOUT
-         * ============================
+         * STACK CHARTS VERTICALLY
          */
-
         JPanel chartsPanel =
                 new JPanel();
 
@@ -162,7 +158,9 @@ public class SalesPanel extends JPanel {
         );
 
         chartsPanel.add(
-                Box.createVerticalStrut(15)
+                Box.createVerticalStrut(
+                        15
+                )
         );
 
         chartsPanel.add(
@@ -170,17 +168,16 @@ public class SalesPanel extends JPanel {
         );
 
         /*
-         * ============================
          * SCROLLING
-         * ============================
          */
-
         JScrollPane scrollPane =
                 new JScrollPane(
                         chartsPanel
                 );
 
-        scrollPane.setBorder(null);
+        scrollPane.setBorder(
+                null
+        );
 
         scrollPane.setBackground(
                 BACKGROUND_COLOR
@@ -192,7 +189,9 @@ public class SalesPanel extends JPanel {
                 );
 
         scrollPane.getVerticalScrollBar()
-                .setUnitIncrement(16);
+                .setUnitIncrement(
+                        16
+                );
 
         scrollPane.setHorizontalScrollBarPolicy(
                 JScrollPane.HORIZONTAL_SCROLLBAR_NEVER
@@ -204,16 +203,10 @@ public class SalesPanel extends JPanel {
         );
 
         /*
-         * Initial load.
+         * INITIAL LOAD
          */
         applyFilters();
     }
-
-    /*
-     * ============================
-     * HEADER
-     * ============================
-     */
 
     private JPanel createHeader() {
 
@@ -273,22 +266,22 @@ public class SalesPanel extends JPanel {
                 Component.LEFT_ALIGNMENT
         );
 
-        header.add(title);
-
         header.add(
-                Box.createVerticalStrut(4)
+                title
         );
 
-        header.add(subtitle);
+        header.add(
+                Box.createVerticalStrut(
+                        4
+                )
+        );
+
+        header.add(
+                subtitle
+        );
 
         return header;
     }
-
-    /*
-     * ============================
-     * BIG SALES FILTER
-     * ============================
-     */
 
     private JPanel createFilterBar() {
 
@@ -307,9 +300,11 @@ public class SalesPanel extends JPanel {
 
         filterBar.setBorder(
                 BorderFactory.createCompoundBorder(
+
                         BorderFactory.createLineBorder(
                                 BORDER_COLOR
                         ),
+
                         new EmptyBorder(
                                 4,
                                 10,
@@ -322,7 +317,6 @@ public class SalesPanel extends JPanel {
         /*
          * YEAR
          */
-
         JLabel yearLabel =
                 new JLabel(
                         "Year:"
@@ -347,7 +341,6 @@ public class SalesPanel extends JPanel {
         /*
          * SCOPE
          */
-
         JLabel scopeLabel =
                 new JLabel(
                         "Scope:"
@@ -367,18 +360,52 @@ public class SalesPanel extends JPanel {
                         }
                 );
 
-        /*
-         * Start with yearly so the whole
-         * year is initially displayed.
-         */
         scopeFilter.setSelectedItem(
                 "Yearly"
         );
 
         /*
+         * MONTH
+         * Only visible when Weekly is selected.
+         */
+        monthLabel =
+                new JLabel(
+                        "Month:"
+                );
+
+        monthLabel.setForeground(
+                PRIMARY_TEXT
+        );
+
+        monthFilter =
+                new JComboBox<>(
+                        new String[]{
+                                "January",
+                                "February",
+                                "March",
+                                "April",
+                                "May",
+                                "June",
+                                "July",
+                                "August",
+                                "September",
+                                "October",
+                                "November",
+                                "December"
+                        }
+                );
+
+        monthLabel.setVisible(
+                false
+        );
+
+        monthFilter.setVisible(
+                false
+        );
+
+        /*
          * PERIOD
          */
-
         JLabel periodLabel =
                 new JLabel(
                         "Period:"
@@ -391,23 +418,25 @@ public class SalesPanel extends JPanel {
         periodFilter =
                 new JComboBox<>();
 
-        /*
-         * Fill period dropdown.
-         */
-        updatePeriodFilter();
+        updateFilterOptions();
 
         /*
-         * Whenever scope changes,
-         * rebuild period dropdown.
+         * Change period options when scope changes.
          */
         scopeFilter.addActionListener(
-                event -> updatePeriodFilter()
+                event -> updateFilterOptions()
         );
 
         /*
-         * APPLY BUTTON
+         * Rebuild weekly options if month changes.
          */
+        monthFilter.addActionListener(
+                event -> updateWeeklyPeriods()
+        );
 
+        /*
+         * APPLY
+         */
         JButton applyButton =
                 new JButton(
                         "Apply Filters"
@@ -446,9 +475,24 @@ public class SalesPanel extends JPanel {
         );
 
         /*
-         * RESET BUTTON
+         * REFRESH
          */
+        JButton refreshButton =
+                new JButton(
+                        "Refresh"
+                );
 
+        refreshButton.setFocusPainted(
+                false
+        );
+
+        refreshButton.addActionListener(
+                event -> applyFilters()
+        );
+
+        /*
+         * RESET
+         */
         JButton resetButton =
                 new JButton(
                         "Reset"
@@ -461,10 +505,6 @@ public class SalesPanel extends JPanel {
         resetButton.addActionListener(
                 event -> resetFilters()
         );
-
-        /*
-         * ADD EVERYTHING
-         */
 
         filterBar.add(
                 yearLabel
@@ -483,6 +523,14 @@ public class SalesPanel extends JPanel {
         );
 
         filterBar.add(
+                monthLabel
+        );
+
+        filterBar.add(
+                monthFilter
+        );
+
+        filterBar.add(
                 periodLabel
         );
 
@@ -495,6 +543,10 @@ public class SalesPanel extends JPanel {
         );
 
         filterBar.add(
+                refreshButton
+        );
+
+        filterBar.add(
                 resetButton
         );
 
@@ -502,24 +554,37 @@ public class SalesPanel extends JPanel {
     }
 
     /*
-     * ============================
-     * CHANGE PERIOD OPTIONS
-     * ============================
+     * Updates dropdowns depending on Scope.
      */
+    private void updateFilterOptions() {
 
-    private void updatePeriodFilter() {
-
-        if (scopeFilter == null
-                || periodFilter == null) {
-
+        if (
+                scopeFilter == null
+                        || periodFilter == null
+        ) {
             return;
         }
-
-        periodFilter.removeAllItems();
 
         String scope =
                 (String)
                         scopeFilter.getSelectedItem();
+
+        boolean weekly =
+                "Weekly".equals(scope);
+
+        /*
+         * Only show Month selector
+         * when Weekly is selected.
+         */
+        monthLabel.setVisible(
+                weekly
+        );
+
+        monthFilter.setVisible(
+                weekly
+        );
+
+        periodFilter.removeAllItems();
 
         /*
          * YEARLY
@@ -536,10 +601,21 @@ public class SalesPanel extends JPanel {
          */
         else if ("Quarterly".equals(scope)) {
 
-            periodFilter.addItem("Q1");
-            periodFilter.addItem("Q2");
-            periodFilter.addItem("Q3");
-            periodFilter.addItem("Q4");
+            periodFilter.addItem(
+                    "Q1"
+            );
+
+            periodFilter.addItem(
+                    "Q2"
+            );
+
+            periodFilter.addItem(
+                    "Q3"
+            );
+
+            periodFilter.addItem(
+                    "Q4"
+            );
         }
 
         /*
@@ -547,18 +623,53 @@ public class SalesPanel extends JPanel {
          */
         else if ("Monthly".equals(scope)) {
 
-            periodFilter.addItem("January");
-            periodFilter.addItem("February");
-            periodFilter.addItem("March");
-            periodFilter.addItem("April");
-            periodFilter.addItem("May");
-            periodFilter.addItem("June");
-            periodFilter.addItem("July");
-            periodFilter.addItem("August");
-            periodFilter.addItem("September");
-            periodFilter.addItem("October");
-            periodFilter.addItem("November");
-            periodFilter.addItem("December");
+            periodFilter.addItem(
+                    "January"
+            );
+
+            periodFilter.addItem(
+                    "February"
+            );
+
+            periodFilter.addItem(
+                    "March"
+            );
+
+            periodFilter.addItem(
+                    "April"
+            );
+
+            periodFilter.addItem(
+                    "May"
+            );
+
+            periodFilter.addItem(
+                    "June"
+            );
+
+            periodFilter.addItem(
+                    "July"
+            );
+
+            periodFilter.addItem(
+                    "August"
+            );
+
+            periodFilter.addItem(
+                    "September"
+            );
+
+            periodFilter.addItem(
+                    "October"
+            );
+
+            periodFilter.addItem(
+                    "November"
+            );
+
+            periodFilter.addItem(
+                    "December"
+            );
         }
 
         /*
@@ -566,19 +677,62 @@ public class SalesPanel extends JPanel {
          */
         else if ("Weekly".equals(scope)) {
 
-            periodFilter.addItem("Week 1");
-            periodFilter.addItem("Week 2");
-            periodFilter.addItem("Week 3");
-            periodFilter.addItem("Week 4");
-            periodFilter.addItem("Week 5");
+            updateWeeklyPeriods();
         }
+
+        revalidate();
+        repaint();
     }
 
     /*
-     * ============================
-     * APPLY FILTER
-     * ============================
+     * Weekly periods are inside the selected month.
+     *
+     * Week 1 = days 1-7
+     * Week 2 = days 8-14
+     * Week 3 = days 15-21
+     * Week 4 = days 22-28
+     * Week 5 = days 29-end
      */
+    private void updateWeeklyPeriods() {
+
+        if (
+                periodFilter == null
+                        || monthFilter == null
+                        || scopeFilter == null
+        ) {
+            return;
+        }
+
+        String scope =
+                (String)
+                        scopeFilter.getSelectedItem();
+
+        if (!"Weekly".equals(scope)) {
+            return;
+        }
+
+        periodFilter.removeAllItems();
+
+        periodFilter.addItem(
+                "Week 1"
+        );
+
+        periodFilter.addItem(
+                "Week 2"
+        );
+
+        periodFilter.addItem(
+                "Week 3"
+        );
+
+        periodFilter.addItem(
+                "Week 4"
+        );
+
+        periodFilter.addItem(
+                "Week 5"
+        );
+    }
 
     private void applyFilters() {
 
@@ -594,10 +748,21 @@ public class SalesPanel extends JPanel {
                 (String)
                         periodFilter.getSelectedItem();
 
-        if (year == null
-                || scope == null
-                || period == null) {
+        String selectedMonth =
+                null;
 
+        if ("Weekly".equals(scope)) {
+
+            selectedMonth =
+                    (String)
+                            monthFilter.getSelectedItem();
+        }
+
+        if (
+                year == null
+                        || scope == null
+                        || period == null
+        ) {
             return;
         }
 
@@ -606,39 +771,42 @@ public class SalesPanel extends JPanel {
         );
 
         System.out.println(
-                "Year: " + year
+                "Year: "
+                        + year
         );
 
         System.out.println(
-                "Scope: " + scope
+                "Scope: "
+                        + scope
         );
+
+        if (selectedMonth != null) {
+
+            System.out.println(
+                    "Month: "
+                            + selectedMonth
+            );
+        }
 
         System.out.println(
-                "Period: " + period
+                "Period: "
+                        + period
         );
-
-        /*
-         * SAME FILTER GOES TO BOTH CHARTS.
-         */
 
         revenueOverTimeChart.applyFilters(
                 year,
                 scope,
+                selectedMonth,
                 period
         );
 
         revenueByRegionChart.applyFilters(
                 year,
                 scope,
+                selectedMonth,
                 period
         );
     }
-
-    /*
-     * ============================
-     * RESET
-     * ============================
-     */
 
     private void resetFilters() {
 
@@ -650,7 +818,11 @@ public class SalesPanel extends JPanel {
                 "Yearly"
         );
 
-        updatePeriodFilter();
+        monthFilter.setSelectedItem(
+                "January"
+        );
+
+        updateFilterOptions();
 
         applyFilters();
     }

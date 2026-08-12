@@ -134,13 +134,19 @@ public class RevenueByRegionChart extends JPanel {
                 Component.LEFT_ALIGNMENT
         );
 
-        titlePanel.add(title);
-
         titlePanel.add(
-                Box.createVerticalStrut(2)
+                title
         );
 
-        titlePanel.add(description);
+        titlePanel.add(
+                Box.createVerticalStrut(
+                        2
+                )
+        );
+
+        titlePanel.add(
+                description
+        );
 
         add(
                 titlePanel,
@@ -250,18 +256,19 @@ public class RevenueByRegionChart extends JPanel {
     }
 
     /*
-     * Receives the same Sales filter.
+     * Accepts the exact same Sales page filter.
      *
      * Current backend limitation:
-     * /api/query/compare can group by region,
-     * but cannot simultaneously filter by order_date.
+     * /api/query/compare gives us region + revenue,
+     * but not region + revenue + order_date together.
      *
-     * Therefore the values below are REAL database
-     * regional totals, but not yet time-filtered.
+     * So regional values are still real database
+     * totals, but cannot yet be time-filtered.
      */
     public void applyFilters(
             int selectedYear,
             String scope,
+            String selectedMonth,
             String period
     ) {
 
@@ -287,7 +294,9 @@ public class RevenueByRegionChart extends JPanel {
 
             List<ComparisonRow> rows =
                     SchemaIntrospector
-                            .parseCompareRows(json);
+                            .parseCompareRows(
+                                    json
+                            );
 
             dataset.clear();
 
@@ -300,10 +309,28 @@ public class RevenueByRegionChart extends JPanel {
                 );
             }
 
-            statusLabel.setText(
-                    "Live regional sales totals"
-                            + " • Time filtering requires backend support"
-            );
+            /*
+             * Don't pretend the time filter
+             * is affecting this chart yet.
+             */
+            if (
+                    "Weekly".equals(scope)
+            ) {
+
+                statusLabel.setText(
+                        "Live regional totals • "
+                                + selectedMonth
+                                + " "
+                                + period
+                                + " time filter requires backend support"
+                );
+
+            } else {
+
+                statusLabel.setText(
+                        "Live regional totals • Time filtering requires backend support"
+                );
+            }
 
         } catch (Exception e) {
 
