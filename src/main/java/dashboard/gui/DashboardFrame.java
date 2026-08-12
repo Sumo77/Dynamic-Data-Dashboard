@@ -428,11 +428,10 @@ public class DashboardFrame extends JFrame {
         );
 
         contentCardPanel.add(
-                createPlaceholderPage(
-                        "Sales"
-                ),
+                new SalesPanel(),
                 "Sales"
         );
+        
 
         contentCardPanel.add(
                 createPlaceholderPage(
