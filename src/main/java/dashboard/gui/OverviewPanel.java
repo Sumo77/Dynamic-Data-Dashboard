@@ -8,6 +8,7 @@ import javax.swing.border.EmptyBorder;
 import java.awt.*;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -32,22 +33,17 @@ public class OverviewPanel extends JPanel {
     private static final Color BORDER_COLOR =
             new Color(226, 232, 240);
 
+    private final Map<String, TableMeta> schema;
+
     private KpiPanel kpiPanel;
     private RevenueChartPanel revenueChartPanel;
 
-    private final Map<String, TableMeta> schema;
-
-    /*
-     * Global dashboard filters.
-     */
     private JComboBox<Integer> yearFilter;
     private JComboBox<String> scopeFilter;
     private JComboBox<String> periodFilter;
     private JComboBox<String> regionFilter;
 
-    public OverviewPanel(
-            Map<String, TableMeta> schema
-    ) {
+    public OverviewPanel(Map<String, TableMeta> schema) {
 
         this.schema = schema;
 
@@ -58,10 +54,7 @@ public class OverviewPanel extends JPanel {
     private void configurePanel() {
 
         setLayout(
-                new BorderLayout(
-                        0,
-                        15
-                )
+                new BorderLayout(0, 15)
         );
 
         setBackground(
@@ -82,49 +75,37 @@ public class OverviewPanel extends JPanel {
 
         JPanel topSection =
                 new JPanel(
-                        new BorderLayout(
-                                0,
-                                15
-                        )
+                        new BorderLayout(0, 15)
                 );
 
         topSection.setBackground(
                 BACKGROUND_COLOR
         );
 
-        /*
-         * Header + global filter.
-         */
-        JPanel headerSection =
+        JPanel headerFilterSection =
                 new JPanel(
-                        new BorderLayout(
-                                0,
-                                10
-                        )
+                        new BorderLayout(0, 10)
                 );
 
-        headerSection.setBackground(
+        headerFilterSection.setBackground(
                 BACKGROUND_COLOR
         );
 
-        headerSection.add(
+        headerFilterSection.add(
                 createHeader(),
                 BorderLayout.NORTH
         );
 
-        headerSection.add(
+        headerFilterSection.add(
                 createGlobalFilter(),
                 BorderLayout.CENTER
         );
 
         topSection.add(
-                headerSection,
+                headerFilterSection,
                 BorderLayout.NORTH
         );
 
-        /*
-         * KPI cards.
-         */
         kpiPanel =
                 new KpiPanel();
 
@@ -138,16 +119,14 @@ public class OverviewPanel extends JPanel {
                 BorderLayout.NORTH
         );
 
-        /*
-         * Graph + Compare Data.
-         */
         add(
                 createDashboardArea(),
                 BorderLayout.CENTER
         );
 
         /*
-         * Load real data when dashboard opens.
+         * Load the first selected filter
+         * when the page starts.
          */
         applyGlobalFilters();
     }
@@ -177,12 +156,12 @@ public class OverviewPanel extends JPanel {
                 BACKGROUND_COLOR
         );
 
-        JLabel titleLabel =
+        JLabel title =
                 new JLabel(
                         "Overview"
                 );
 
-        titleLabel.setFont(
+        title.setFont(
                 new Font(
                         "SansSerif",
                         Font.BOLD,
@@ -190,11 +169,11 @@ public class OverviewPanel extends JPanel {
                 )
         );
 
-        titleLabel.setForeground(
+        title.setForeground(
                 PRIMARY_TEXT
         );
 
-        titleLabel.setAlignmentX(
+        title.setAlignmentX(
                 Component.LEFT_ALIGNMENT
         );
 
@@ -203,14 +182,14 @@ public class OverviewPanel extends JPanel {
                         "EEEE, d MMMM yyyy"
                 );
 
-        JLabel dateLabel =
+        JLabel date =
                 new JLabel(
                         LocalDate.now()
                                 .format(formatter)
                                 + "  |  Live retail overview"
                 );
 
-        dateLabel.setFont(
+        date.setFont(
                 new Font(
                         "SansSerif",
                         Font.PLAIN,
@@ -218,44 +197,30 @@ public class OverviewPanel extends JPanel {
                 )
         );
 
-        dateLabel.setForeground(
+        date.setForeground(
                 SECONDARY_TEXT
         );
 
-        dateLabel.setAlignmentX(
+        date.setAlignmentX(
                 Component.LEFT_ALIGNMENT
         );
 
-        titleArea.add(
-                titleLabel
-        );
+        titleArea.add(title);
 
         titleArea.add(
-                Box.createVerticalStrut(
-                        4
-                )
+                Box.createVerticalStrut(4)
         );
 
-        titleArea.add(
-                dateLabel
-        );
+        titleArea.add(date);
 
         JButton refreshButton =
                 new JButton(
                         "Refresh Dashboard"
                 );
 
-        refreshButton.setFocusPainted(
-                false
-        );
-
-        refreshButton.setBorderPainted(
-                false
-        );
-
-        refreshButton.setOpaque(
-                true
-        );
+        refreshButton.setFocusPainted(false);
+        refreshButton.setBorderPainted(false);
+        refreshButton.setOpaque(true);
 
         refreshButton.setBackground(
                 ACTIVE_COLOR
@@ -314,9 +279,6 @@ public class OverviewPanel extends JPanel {
         return header;
     }
 
-    /*
-     * Creates the large dashboard-wide filter.
-     */
     private JPanel createGlobalFilter() {
 
         JPanel filterPanel =
@@ -346,17 +308,8 @@ public class OverviewPanel extends JPanel {
                 )
         );
 
-        /*
-         * YEAR
-         */
         JLabel yearLabel =
-                new JLabel(
-                        "Year:"
-                );
-
-        yearLabel.setForeground(
-                PRIMARY_TEXT
-        );
+                new JLabel("Year:");
 
         yearFilter =
                 new JComboBox<>(
@@ -370,17 +323,8 @@ public class OverviewPanel extends JPanel {
                 2023
         );
 
-        /*
-         * SCOPE
-         */
         JLabel scopeLabel =
-                new JLabel(
-                        "Scope:"
-                );
-
-        scopeLabel.setForeground(
-                PRIMARY_TEXT
-        );
+                new JLabel("Scope:");
 
         scopeFilter =
                 new JComboBox<>(
@@ -395,34 +339,20 @@ public class OverviewPanel extends JPanel {
                 "Monthly"
         );
 
-        /*
-         * PERIOD
-         */
         JLabel periodLabel =
-                new JLabel(
-                        "Period:"
-                );
-
-        periodLabel.setForeground(
-                PRIMARY_TEXT
-        );
+                new JLabel("Period:");
 
         periodFilter =
                 new JComboBox<>();
 
         updatePeriodFilter();
 
-        /*
-         * REGION
-         */
-        JLabel regionLabel =
-                new JLabel(
-                        "Region:"
-                );
-
-        regionLabel.setForeground(
-                PRIMARY_TEXT
+        scopeFilter.addActionListener(
+                event -> updatePeriodFilter()
         );
+
+        JLabel regionLabel =
+                new JLabel("Region:");
 
         regionFilter =
                 new JComboBox<>(
@@ -434,32 +364,14 @@ public class OverviewPanel extends JPanel {
                         }
                 );
 
-        /*
-         * Change available periods when scope changes.
-         */
-        scopeFilter.addActionListener(
-                event -> updatePeriodFilter()
-        );
-
-        /*
-         * APPLY BUTTON
-         */
         JButton applyButton =
                 new JButton(
                         "Apply Filters"
                 );
 
-        applyButton.setFocusPainted(
-                false
-        );
-
-        applyButton.setBorderPainted(
-                false
-        );
-
-        applyButton.setOpaque(
-                true
-        );
+        applyButton.setFocusPainted(false);
+        applyButton.setBorderPainted(false);
+        applyButton.setOpaque(true);
 
         applyButton.setBackground(
                 ACTIVE_COLOR
@@ -481,79 +393,48 @@ public class OverviewPanel extends JPanel {
                 event -> applyGlobalFilters()
         );
 
-        /*
-         * RESET BUTTON
-         */
         JButton resetButton =
                 new JButton(
                         "Reset"
                 );
 
-        resetButton.setFocusPainted(
-                false
-        );
+        resetButton.setFocusPainted(false);
 
         resetButton.addActionListener(
                 event -> resetFilters()
         );
 
-        filterPanel.add(
-                yearLabel
-        );
+        filterPanel.add(yearLabel);
+        filterPanel.add(yearFilter);
 
-        filterPanel.add(
-                yearFilter
-        );
+        filterPanel.add(scopeLabel);
+        filterPanel.add(scopeFilter);
 
-        filterPanel.add(
-                scopeLabel
-        );
+        filterPanel.add(periodLabel);
+        filterPanel.add(periodFilter);
 
-        filterPanel.add(
-                scopeFilter
-        );
+        filterPanel.add(regionLabel);
+        filterPanel.add(regionFilter);
 
-        filterPanel.add(
-                periodLabel
-        );
-
-        filterPanel.add(
-                periodFilter
-        );
-
-        filterPanel.add(
-                regionLabel
-        );
-
-        filterPanel.add(
-                regionFilter
-        );
-
-        filterPanel.add(
-                applyButton
-        );
-
-        filterPanel.add(
-                resetButton
-        );
+        filterPanel.add(applyButton);
+        filterPanel.add(resetButton);
 
         return filterPanel;
     }
 
-    /*
-     * Updates Period based on scope.
-     */
     private void updatePeriodFilter() {
 
-        if (periodFilter == null
-                || scopeFilter == null) {
+        if (scopeFilter == null
+                || periodFilter == null) {
+
             return;
         }
 
         periodFilter.removeAllItems();
 
         String scope =
-                (String) scopeFilter.getSelectedItem();
+                (String)
+                        scopeFilter.getSelectedItem();
 
         if ("Yearly".equals(scope)) {
 
@@ -563,71 +444,25 @@ public class OverviewPanel extends JPanel {
 
         } else if ("Quarterly".equals(scope)) {
 
-            periodFilter.addItem(
-                    "Q1"
-            );
-
-            periodFilter.addItem(
-                    "Q2"
-            );
-
-            periodFilter.addItem(
-                    "Q3"
-            );
-
-            periodFilter.addItem(
-                    "Q4"
-            );
+            periodFilter.addItem("Q1");
+            periodFilter.addItem("Q2");
+            periodFilter.addItem("Q3");
+            periodFilter.addItem("Q4");
 
         } else {
 
-            periodFilter.addItem(
-                    "January"
-            );
-
-            periodFilter.addItem(
-                    "February"
-            );
-
-            periodFilter.addItem(
-                    "March"
-            );
-
-            periodFilter.addItem(
-                    "April"
-            );
-
-            periodFilter.addItem(
-                    "May"
-            );
-
-            periodFilter.addItem(
-                    "June"
-            );
-
-            periodFilter.addItem(
-                    "July"
-            );
-
-            periodFilter.addItem(
-                    "August"
-            );
-
-            periodFilter.addItem(
-                    "September"
-            );
-
-            periodFilter.addItem(
-                    "October"
-            );
-
-            periodFilter.addItem(
-                    "November"
-            );
-
-            periodFilter.addItem(
-                    "December"
-            );
+            periodFilter.addItem("January");
+            periodFilter.addItem("February");
+            periodFilter.addItem("March");
+            periodFilter.addItem("April");
+            periodFilter.addItem("May");
+            periodFilter.addItem("June");
+            periodFilter.addItem("July");
+            periodFilter.addItem("August");
+            periodFilter.addItem("September");
+            periodFilter.addItem("October");
+            periodFilter.addItem("November");
+            periodFilter.addItem("December");
         }
     }
 
@@ -654,11 +489,8 @@ public class OverviewPanel extends JPanel {
         revenueChartPanel =
                 new RevenueChartPanel();
 
-        constraints.gridx =
-                0;
-
-        constraints.gridy =
-                0;
+        constraints.gridx = 0;
+        constraints.gridy = 0;
 
         constraints.weightx =
                 0.60;
@@ -681,11 +513,7 @@ public class OverviewPanel extends JPanel {
                         schema
                 );
 
-        constraints.gridx =
-                1;
-
-        constraints.gridy =
-                0;
+        constraints.gridx = 1;
 
         constraints.weightx =
                 0.40;
@@ -707,132 +535,70 @@ public class OverviewPanel extends JPanel {
     }
 
     /*
-     * Loads real KPI values using the selected year.
-     */
-    private void loadKpiData() {
-
-        try {
-    
-            Integer selectedYear =
-                    (Integer) yearFilter.getSelectedItem();
-    
-            if (selectedYear == null) {
-                return;
-            }
-    
-            String json =
-                    ApiClient.getData(
-                            "api/kpis/summary",
-                            Map.of(
-                                    "year_from",
-                                    String.valueOf(selectedYear)
-                            )
-                    );
-    
-            System.out.println(
-                    "KPI FILTER YEAR: " + selectedYear
-            );
-    
-            System.out.println(
-                    "KPI RESPONSE: " + json
-            );
-    
-            double revenue =
-                    extractNumber(
-                            json,
-                            "total_revenue"
-                    );
-    
-            double growth =
-                    extractNumber(
-                            json,
-                            "revenue_growth_pct"
-                    );
-    
-            double profit =
-                    extractNumber(
-                            json,
-                            "profit"
-                    );
-    
-            double margin =
-                    extractNumber(
-                            json,
-                            "profit_margin_pct"
-                    );
-    
-            double turnover =
-                    extractNumber(
-                            json,
-                            "inventory_turnover"
-                    );
-    
-            double retention =
-                    extractNumber(
-                            json,
-                            "retention_rate_pct"
-                    );
-    
-            kpiPanel.updateKpis(
-                    revenue,
-                    growth,
-                    profit,
-                    margin,
-                    turnover,
-                    retention
-            );
-    
-        } catch (Exception e) {
-    
-            e.printStackTrace();
-    
-            kpiPanel.showError();
-        }
-    }
-    /*
-     * Applies the global filters to the whole dashboard.
+     * ONE BIG FILTER
+     *
+     * This passes the SAME values to:
+     * - KPI cards
+     * - Revenue graph
      */
     private void applyGlobalFilters() {
 
         Integer year =
-                (Integer) yearFilter.getSelectedItem();
-    
+                (Integer)
+                        yearFilter.getSelectedItem();
+
         String scope =
-                (String) scopeFilter.getSelectedItem();
-    
+                (String)
+                        scopeFilter.getSelectedItem();
+
         String period =
-                (String) periodFilter.getSelectedItem();
-    
+                (String)
+                        periodFilter.getSelectedItem();
+
         String region =
-                (String) regionFilter.getSelectedItem();
-    
+                (String)
+                        regionFilter.getSelectedItem();
+
+        if (year == null
+                || scope == null
+                || period == null
+                || region == null) {
+
+            return;
+        }
+
         System.out.println(
-                "Applying filters:"
+                "GLOBAL FILTER:"
         );
-    
+
         System.out.println(
                 "Year = " + year
         );
-    
+
         System.out.println(
                 "Scope = " + scope
         );
-    
+
         System.out.println(
                 "Period = " + period
         );
-    
+
         System.out.println(
                 "Region = " + region
         );
-    
+
         /*
-         * Reload REAL KPI data.
+         * Update KPI cards.
          */
-        loadKpiData();
-    
+        loadFilteredKpis(
+                year,
+                scope,
+                period,
+                region
+        );
+
         /*
-         * Reload REAL graph data.
+         * Update graph.
          */
         revenueChartPanel.applyFilters(
                 year,
@@ -843,25 +609,88 @@ public class OverviewPanel extends JPanel {
     }
 
     /*
-     * Resets the dashboard filter.
+     * REAL filtered KPI endpoint.
      */
-    private void resetFilters() {
+    private void loadFilteredKpis(
+            Integer year,
+            String scope,
+            String period,
+            String region
+    ) {
 
-        yearFilter.setSelectedItem(
-                2023
-        );
+        try {
 
-        scopeFilter.setSelectedItem(
-                "Monthly"
-        );
+            Map<String, String> params =
+                    new HashMap<>();
 
-        updatePeriodFilter();
+            params.put(
+                    "year",
+                    String.valueOf(year)
+            );
 
-        regionFilter.setSelectedItem(
-                "All Regions"
-        );
+            params.put(
+                    "scope",
+                    scope.toLowerCase()
+            );
 
-        applyGlobalFilters();
+            params.put(
+                    "period",
+                    period
+            );
+
+            params.put(
+                    "region",
+                    region
+            );
+
+            String json =
+                    ApiClient.getData(
+                            "api/kpis/filtered",
+                            params
+                    );
+
+            System.out.println(
+                    "FILTERED KPI RESPONSE:"
+            );
+
+            System.out.println(
+                    json
+            );
+
+            /*
+             * These are currently the two
+             * SOLO KPIs returned by the backend.
+             */
+            double revenue =
+                    extractNumber(
+                            json,
+                            "total_revenue"
+                    );
+
+            double growth =
+                    extractNumber(
+                            json,
+                            "revenue_growth_pct"
+                    );
+
+            /*
+             * Only update those two cards.
+             */
+            kpiPanel.updateSoloKpis(
+                    revenue,
+                    growth
+            );
+
+        } catch (Exception e) {
+
+            System.err.println(
+                    "Filtered KPI error:"
+            );
+
+            e.printStackTrace();
+
+            kpiPanel.showError();
+        }
     }
 
     private double extractNumber(
@@ -890,20 +719,43 @@ public class OverviewPanel extends JPanel {
         }
 
         throw new IllegalArgumentException(
-                "KPI value not found: "
+                "Missing KPI field: "
                         + key
         );
     }
 
     private void refreshDashboard() {
 
+        /*
+         * Re-run the currently selected
+         * global filter against the database.
+         */
         applyGlobalFilters();
 
         JOptionPane.showMessageDialog(
                 this,
-                "Dashboard data refreshed.",
+                "Dashboard refreshed from database.",
                 "Refresh Complete",
                 JOptionPane.INFORMATION_MESSAGE
         );
+    }
+
+    private void resetFilters() {
+
+        yearFilter.setSelectedItem(
+                2023
+        );
+
+        scopeFilter.setSelectedItem(
+                "Monthly"
+        );
+
+        updatePeriodFilter();
+
+        regionFilter.setSelectedItem(
+                "All Regions"
+        );
+
+        applyGlobalFilters();
     }
 }

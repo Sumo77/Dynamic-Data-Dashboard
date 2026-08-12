@@ -15,7 +15,7 @@ import java.util.Locale;
 import java.util.Map;
 
 
-// This class creates the "Compare Data" card on the Overview page. It lets
+// This class creates the Compare Data card on the Overview page. It lets
 // the user pick any two columns the schema has already classified - one
 // measure, one dimension or date - and runs the resulting SUM(...) GROUP BY
 // query against the live server, the same way the KPI cards and revenue chart do.
