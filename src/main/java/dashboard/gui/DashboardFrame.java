@@ -1,521 +1,125 @@
 package dashboard.gui;
 
-import dashboard.database.ApiClient;
 import dashboard.database.SchemaIntrospector;
 import dashboard.database.SchemaIntrospector.TableMeta;
 
 import javax.swing.*;
 import java.awt.*;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
-/*
- * This class creates the main dashboard window. It controls the overall layout
- * and switches between the different pages using CardLayout.
- */
 public class DashboardFrame extends JFrame {
 
-    private static final Color SIDEBAR_COLOUR =
-            new Color(17, 24, 39);
+    private static final Color SIDEBAR = new Color(17,24,39);
+    private static final Color BACKGROUND = new Color(245,247,250);
+    private static final Color ACTIVE = new Color(0,212,255);
 
-    private static final Color BACKGROUND_COLOR =
-            new Color(245, 247, 250);
+    private final CardLayout cards = new CardLayout();
+    private final JPanel content = new JPanel(cards);
+    private final Map<String, FilterableDashboardPage> filterablePages = new LinkedHashMap<>();
+    private DashboardFilter globalFilter = DashboardFilter.defaults();
+    private Map<String, TableMeta> schema = Map.of();
 
-    private static final Color ACTIVE_COLOR =
-            new Color(0, 212, 255);
-
-    private CardLayout contentCardLayout;
-    private JPanel contentCardPanel;
-
-    /*
-     * The schema is loaded once when the dashboard starts.
-     * It contains the real database tables and column information.
-     */
-    private Map<String, TableMeta> schema;
-
-    /*
-     * This constructor loads the schema, tests the backend connection,
-     * configures the window and creates the dashboard layout.
-     */
     public DashboardFrame() {
-
-        /*
-         * Load the real database schema before creating the GUI.
-         */
         try {
-
-            schema =
-                    SchemaIntrospector.introspect();
-
-            System.out.println(
-                    "Schema loaded successfully."
-            );
-
-            for (TableMeta table : schema.values()) {
-
-                System.out.println(
-                        table.name
-                                + " -> "
-                                + table.columns.values()
-                );
-            }
-
-        } catch (Exception e) {
-
-            System.err.println(
-                    "Schema introspection failed, "
-                            + "falling back to no schema metadata:"
-            );
-
-            e.printStackTrace();
-
-            schema = Map.of();
+            schema = SchemaIntrospector.introspect();
+            System.out.println("Schema loaded successfully.");
+        } catch (Exception ex) {
+            System.err.println("Schema introspection failed: " + ex.getMessage());
         }
 
-        /*
-         * Temporary backend test.
-         * This proves that the KPI endpoint can be reached.
-         *
-         * Once KpiPanel is fully using real data,
-         * this test can be removed.
-         */
-        try {
-
-            String json =
-                    ApiClient.getData(
-                            "api/kpis/summary",
-                            Map.of(
-                                    "year_from",
-                                    "2024"
-                            )
-                    );
-
-            System.out.println(
-                    "KPI API response:"
-            );
-
-            System.out.println(json);
-
-        } catch (Exception e) {
-
-            System.err.println(
-                    "Unable to reach KPI API:"
-            );
-
-            e.printStackTrace();
-        }
-
-        configureWindow();
+        setTitle("Dynamic Retail Dashboard");
+        setSize(1200,800);
+        setMinimumSize(new Dimension(1000,700));
+        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setLocationRelativeTo(null);
         createLayout();
     }
 
-    /*
-     * This method configures the main dashboard window.
-     */
-    private void configureWindow() {
-
-        setTitle(
-                "Dynamic Retail Dashboard"
-        );
-
-        setSize(
-                1200,
-                800
-        );
-
-        setMinimumSize(
-                new Dimension(
-                        1000,
-                        700
-                )
-        );
-
-        setDefaultCloseOperation(
-                JFrame.EXIT_ON_CLOSE
-        );
-
-        setLocationRelativeTo(null);
-    }
-
-    /*
-     * This method creates the top logo area, sidebar and centre content section.
-     */
     private void createLayout() {
-
-        JPanel mainPanel =
-                new JPanel(
-                        new BorderLayout()
-                );
-
-        mainPanel.setBackground(
-                BACKGROUND_COLOR
-        );
-
-        JPanel northPanel =
-                createTopPanel();
-
-        SidebarPanel sidebarPanel =
-                new SidebarPanel(
-                        this::showPage
-                );
-
-        JPanel centrePanel =
-                createContentArea();
-
-        /*
-         * SOUTH and EAST are kept available for future features
-         * but do not currently take up any visible space.
-         */
-        JPanel southPanel =
-                new JPanel();
-
-        southPanel.setPreferredSize(
-                new Dimension(
-                        0,
-                        0
-                )
-        );
-
-        southPanel.setBackground(
-                BACKGROUND_COLOR
-        );
-
-        JPanel eastPanel =
-                new JPanel();
-
-        eastPanel.setPreferredSize(
-                new Dimension(
-                        0,
-                        0
-                )
-        );
-
-        eastPanel.setBackground(
-                BACKGROUND_COLOR
-        );
-
-        mainPanel.add(
-                northPanel,
-                BorderLayout.NORTH
-        );
-
-        mainPanel.add(
-                sidebarPanel,
-                BorderLayout.WEST
-        );
-
-        mainPanel.add(
-                centrePanel,
-                BorderLayout.CENTER
-        );
-
-        mainPanel.add(
-                southPanel,
-                BorderLayout.SOUTH
-        );
-
-        mainPanel.add(
-                eastPanel,
-                BorderLayout.EAST
-        );
-
-        add(mainPanel);
+        JPanel root = new JPanel(new BorderLayout());
+        root.setBackground(BACKGROUND);
+        root.add(createTopPanel(),BorderLayout.NORTH);
+        root.add(new SidebarPanel(this::showPage),BorderLayout.WEST);
+        root.add(createContentArea(),BorderLayout.CENTER);
+        setContentPane(root);
     }
 
-    /*
-     * This method creates the top dashboard section and places
-     * the logo area on the left.
-     */
     private JPanel createTopPanel() {
+        JPanel top = new JPanel(new BorderLayout());
+        top.setPreferredSize(new Dimension(0,85));
+        top.setBackground(BACKGROUND);
 
-        JPanel topPanel =
-                new JPanel(
-                        new BorderLayout()
-                );
+        JPanel logo = new JPanel();
+        logo.setLayout(new BoxLayout(logo,BoxLayout.Y_AXIS));
+        logo.setPreferredSize(new Dimension(210,85));
+        logo.setBackground(SIDEBAR);
+        logo.setBorder(BorderFactory.createEmptyBorder(17,18,15,18));
 
-        topPanel.setPreferredSize(
-                new Dimension(
-                        0,
-                        85
-                )
-        );
+        JLabel line1 = new JLabel("Dynamic Retail");
+        line1.setForeground(Color.WHITE);
+        line1.setFont(new Font("SansSerif",Font.BOLD,18));
+        JLabel line2 = new JLabel("Dashboard");
+        line2.setForeground(ACTIVE);
+        line2.setFont(new Font("SansSerif",Font.BOLD,18));
+        JLabel sub = new JLabel("Admin Dashboard");
+        sub.setForeground(new Color(170,180,195));
+        sub.setFont(new Font("SansSerif",Font.PLAIN,11));
 
-        topPanel.setBackground(
-                BACKGROUND_COLOR
-        );
-
-        JPanel logoPanel =
-                createLogoPanel();
-
-        logoPanel.setPreferredSize(
-                new Dimension(
-                        210,
-                        85
-                )
-        );
-
-        /*
-         * This area is empty for now but can later contain
-         * notifications, profile controls or settings.
-         */
-        JPanel futureContentArea =
-                new JPanel(
-                        new BorderLayout()
-                );
-
-        futureContentArea.setBackground(
-                BACKGROUND_COLOR
-        );
-
-        topPanel.add(
-                logoPanel,
-                BorderLayout.WEST
-        );
-
-        topPanel.add(
-                futureContentArea,
-                BorderLayout.CENTER
-        );
-
-        return topPanel;
+        logo.add(line1); logo.add(line2); logo.add(Box.createVerticalStrut(3)); logo.add(sub);
+        top.add(logo,BorderLayout.WEST);
+        return top;
     }
 
-    /*
-     * This method creates the dashboard logo displayed
-     * in the top-left corner.
-     */
-    private JPanel createLogoPanel() {
-
-        JPanel logoPanel =
-                new JPanel();
-
-        logoPanel.setLayout(
-                new BoxLayout(
-                        logoPanel,
-                        BoxLayout.Y_AXIS
-                )
-        );
-
-        logoPanel.setBackground(
-                SIDEBAR_COLOUR
-        );
-
-        logoPanel.setBorder(
-                BorderFactory.createEmptyBorder(
-                        17,
-                        18,
-                        15,
-                        18
-                )
-        );
-
-        JLabel firstLine =
-                new JLabel(
-                        "Dynamic Retail"
-                );
-
-        firstLine.setForeground(
-                Color.WHITE
-        );
-
-        firstLine.setFont(
-                new Font(
-                        "SansSerif",
-                        Font.BOLD,
-                        18
-                )
-        );
-
-        firstLine.setAlignmentX(
-                Component.LEFT_ALIGNMENT
-        );
-
-        JLabel secondLine =
-                new JLabel(
-                        "Dashboard"
-                );
-
-        secondLine.setForeground(
-                ACTIVE_COLOR
-        );
-
-        secondLine.setFont(
-                new Font(
-                        "SansSerif",
-                        Font.BOLD,
-                        18
-                )
-        );
-
-        secondLine.setAlignmentX(
-                Component.LEFT_ALIGNMENT
-        );
-
-        JLabel subtitle =
-                new JLabel(
-                        "Admin Dashboard"
-                );
-
-        subtitle.setForeground(
-                new Color(
-                        170,
-                        180,
-                        195
-                )
-        );
-
-        subtitle.setFont(
-                new Font(
-                        "SansSerif",
-                        Font.PLAIN,
-                        11
-                )
-        );
-
-        subtitle.setAlignmentX(
-                Component.LEFT_ALIGNMENT
-        );
-
-        logoPanel.add(
-                firstLine
-        );
-
-        logoPanel.add(
-                secondLine
-        );
-
-        logoPanel.add(
-                Box.createVerticalStrut(
-                        3
-                )
-        );
-
-        logoPanel.add(
-                subtitle
-        );
-
-        return logoPanel;
-    }
-
-    /*
-     * This method creates all dashboard pages and stores them
-     * inside CardLayout.
-     */
     private JPanel createContentArea() {
+        content.setBackground(BACKGROUND);
 
-        contentCardLayout =
-                new CardLayout();
+        OverviewPanel overview = new OverviewPanel(schema,this::onGlobalFilterChanged);
+        SalesPanel sales = new SalesPanel();
+        InventoryPanel inventory = new InventoryPanel();
+        ProductsPanel products = new ProductsPanel();
+        MarketingPanel marketing = new MarketingPanel();
+        CustomersPanel customers = new CustomersPanel();
 
-        contentCardPanel =
-                new JPanel(
-                        contentCardLayout
-                );
+        filterablePages.put("Overview",overview);
+        filterablePages.put("Inventory",inventory);
+        filterablePages.put("Products",products);
+        filterablePages.put("Marketing",marketing);
+        filterablePages.put("Customers",customers);
 
-        contentCardPanel.setBackground(
-                BACKGROUND_COLOR
-        );
+        content.add(overview,"Overview");
+        content.add(sales,"Sales");
+        content.add(inventory,"Inventory");
+        content.add(products,"Products");
+        content.add(marketing,"Marketing");
+        content.add(customers,"Customers");
+        content.add(placeholder("Reports","Report generation remains on the existing project roadmap."),"Reports");
+        content.add(placeholder("Alerts","Use the existing low-stock alert backend route here."),"Alerts");
 
-        /*
-         * The real database schema is passed into OverviewPanel.
-         *
-         * OverviewPanel then passes it into DataComparisonPanel,
-         * allowing the Compare Data dropdowns to use real columns.
-         */
-        contentCardPanel.add(
-                new OverviewPanel(
-                        schema
-                ),
-                "Overview"
-        );
-
-        contentCardPanel.add(
-                new SalesPanel(),
-                "Sales"
-        );
-        
-
-        contentCardPanel.add(
-                createPlaceholderPage(
-                        "Inventory"
-                ),
-                "Inventory"
-        );
-
-        contentCardPanel.add(
-                createPlaceholderPage(
-                        "Reports"
-                ),
-                "Reports"
-        );
-
-        contentCardPanel.add(
-                createPlaceholderPage(
-                        "Alerts"
-                ),
-                "Alerts"
-        );
-
-        return contentCardPanel;
+        // The overview constructor publishes the first filter; ensure all other pages match it.
+        filterablePages.forEach((name,page)->{ if (!"Overview".equals(name)) page.applyFilter(globalFilter); });
+        return content;
     }
 
-    /*
-     * This method creates temporary pages for sections
-     * that have not been developed yet.
-     */
-    private JPanel createPlaceholderPage(
-            String pageName
-    ) {
-
-        JPanel page =
-                new JPanel(
-                        new GridBagLayout()
-                );
-
-        page.setBackground(
-                BACKGROUND_COLOR
-        );
-
-        JLabel label =
-                new JLabel(
-                        pageName
-                                + " Page"
-                );
-
-        label.setFont(
-                new Font(
-                        "SansSerif",
-                        Font.BOLD,
-                        28
-                )
-        );
-
-        label.setForeground(
-                new Color(
-                        31,
-                        41,
-                        55
-                )
-        );
-
-        page.add(
-                label
-        );
-
-        return page;
+    private void onGlobalFilterChanged(DashboardFilter filter) {
+        globalFilter = filter;
+        filterablePages.forEach((name,page)->{
+            if (!"Overview".equals(name)) page.applyFilter(filter);
+        });
     }
 
-    /*
-     * This method displays the page selected from the sidebar.
-     */
-    private void showPage(
-            String pageName
-    ) {
+    private void showPage(String page) {
+        cards.show(content,page);
+        FilterableDashboardPage filterable = filterablePages.get(page);
+        if (filterable != null && !"Overview".equals(page)) filterable.applyFilter(globalFilter);
+    }
 
-        contentCardLayout.show(
-                contentCardPanel,
-                pageName
-        );
-
-        contentCardPanel.revalidate();
-        contentCardPanel.repaint();
+    private JPanel placeholder(String title,String message) {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(BACKGROUND);
+        panel.setBorder(BorderFactory.createEmptyBorder(25,25,25,25));
+        JLabel label = new JLabel("<html><h1>"+title+"</h1><p>"+message+"</p></html>");
+        panel.add(label,BorderLayout.NORTH);
+        return panel;
     }
 }

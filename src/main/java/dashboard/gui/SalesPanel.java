@@ -33,6 +33,8 @@ public class SalesPanel extends JPanel {
 
     private RevenueOverTimeChart revenueOverTimeChart;
     private RevenueByRegionChart revenueByRegionChart;
+    private ProfitMarginOverTimeChart profitMarginOverTimeChart;
+    private QuantityRevenueScatterChart quantityRevenueScatterChart;
 
     public SalesPanel() {
         configurePanel();
@@ -100,6 +102,12 @@ public class SalesPanel extends JPanel {
         revenueByRegionChart =
                 new RevenueByRegionChart();
 
+        profitMarginOverTimeChart =
+                new ProfitMarginOverTimeChart();
+
+        quantityRevenueScatterChart =
+                new QuantityRevenueScatterChart();
+
         revenueOverTimeChart.setPreferredSize(
                 new Dimension(
                         900,
@@ -128,11 +136,47 @@ public class SalesPanel extends JPanel {
                 )
         );
 
+        profitMarginOverTimeChart.setPreferredSize(
+                new Dimension(
+                        900,
+                        380
+                )
+        );
+
+        profitMarginOverTimeChart.setMaximumSize(
+                new Dimension(
+                        Integer.MAX_VALUE,
+                        380
+                )
+        );
+
+        quantityRevenueScatterChart.setPreferredSize(
+                new Dimension(
+                        900,
+                        380
+                )
+        );
+
+        quantityRevenueScatterChart.setMaximumSize(
+                new Dimension(
+                        Integer.MAX_VALUE,
+                        380
+                )
+        );
+
         revenueOverTimeChart.setAlignmentX(
                 Component.LEFT_ALIGNMENT
         );
 
         revenueByRegionChart.setAlignmentX(
+                Component.LEFT_ALIGNMENT
+        );
+
+        profitMarginOverTimeChart.setAlignmentX(
+                Component.LEFT_ALIGNMENT
+        );
+
+        quantityRevenueScatterChart.setAlignmentX(
                 Component.LEFT_ALIGNMENT
         );
 
@@ -165,6 +209,26 @@ public class SalesPanel extends JPanel {
 
         chartsPanel.add(
                 revenueByRegionChart
+        );
+
+        chartsPanel.add(
+                Box.createVerticalStrut(
+                        15
+                )
+        );
+
+        chartsPanel.add(
+                profitMarginOverTimeChart
+        );
+
+        chartsPanel.add(
+                Box.createVerticalStrut(
+                        15
+                )
+        );
+
+        chartsPanel.add(
+                quantityRevenueScatterChart
         );
 
         /*
@@ -801,6 +865,20 @@ public class SalesPanel extends JPanel {
         );
 
         revenueByRegionChart.applyFilters(
+                year,
+                scope,
+                selectedMonth,
+                period
+        );
+
+        profitMarginOverTimeChart.applyFilters(
+                year,
+                scope,
+                selectedMonth,
+                period
+        );
+
+        quantityRevenueScatterChart.applyFilters(
                 year,
                 scope,
                 selectedMonth,

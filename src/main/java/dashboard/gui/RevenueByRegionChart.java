@@ -273,35 +273,30 @@ public class RevenueByRegionChart extends JPanel {
     ) {
 
         try {
+            java.util.Map<String, String> params =
+                    new java.util.LinkedHashMap<>();
+
+            params.put("year", String.valueOf(selectedYear));
+            params.put("scope", scope);
+            params.put("period", period);
+
+            if (selectedMonth != null) {
+                params.put("month", selectedMonth);
+            }
 
             String json =
                     ApiClient.getData(
-                            "api/query/compare",
-                            Map.of(
-                                    "table",
-                                    "sales",
-
-                                    "measureColumn",
-                                    "revenue",
-
-                                    "groupColumn",
-                                    "region",
-
-                                    "aggFn",
-                                    "SUM"
-                            )
+                            "api/sales/revenue-region",
+                            params
                     );
 
             List<ComparisonRow> rows =
                     SchemaIntrospector
-                            .parseCompareRows(
-                                    json
-                            );
+                            .parseCompareRows(json);
 
             dataset.clear();
 
             for (ComparisonRow row : rows) {
-
                 dataset.addValue(
                         row.value,
                         "Revenue",
@@ -309,35 +304,21 @@ public class RevenueByRegionChart extends JPanel {
                 );
             }
 
-            /*
-             * Don't pretend the time filter
-             * is affecting this chart yet.
-             */
-            if (
-                    "Weekly".equals(scope)
-            ) {
-
+            if ("Weekly".equals(scope)) {
                 statusLabel.setText(
-                        "Live regional totals • "
-                                + selectedMonth
-                                + " "
-                                + period
-                                + " time filter requires backend support"
+                        selectedYear + " • " + selectedMonth + " • " + period
+                                + " • Live filtered regional revenue"
                 );
-
             } else {
-
                 statusLabel.setText(
-                        "Live regional totals • Time filtering requires backend support"
+                        selectedYear + " • " + scope + " • " + period
+                                + " • Live filtered regional revenue"
                 );
             }
 
         } catch (Exception e) {
-
             e.printStackTrace();
-
             dataset.clear();
-
             statusLabel.setText(
                     "Unable to load regional revenue"
             );

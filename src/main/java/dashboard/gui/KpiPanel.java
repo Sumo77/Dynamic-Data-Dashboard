@@ -1,5 +1,7 @@
 package dashboard.gui;
 
+import dashboard.database.AnalyticsApi.Kpis;
+
 import javax.swing.*;
 import javax.swing.border.EmptyBorder;
 import java.awt.*;
@@ -258,6 +260,34 @@ public class KpiPanel extends JPanel {
         card.add(deltaLabel);
 
         return card;
+    }
+
+
+    /**
+     * Updates all seven Overview cards from the analytics backend.
+     * The lower line on each card shows the table(s) touched so solo/cross
+     * logic is visible without changing the original card layout.
+     */
+    public void update(Kpis kpis) {
+        revenueValue.setText(String.format("$%,.2f", kpis.revenue()));
+        growthValue.setText(String.format("%.2f%%", kpis.growth()));
+        profitValue.setText(String.format("$%,.2f", kpis.profit()));
+        marginValue.setText(String.format("%.2f%%", kpis.margin()));
+        turnoverValue.setText(String.format("%.2f", kpis.turnover()));
+        retentionValue.setText(String.format("%.2f%%", kpis.retention()));
+        marketingRoiValue.setText(String.format("%.2f%%", kpis.marketingRoi()));
+
+        revenueDelta.setText("solo · sales");
+        growthDelta.setText("solo · sales");
+        profitDelta.setText("cross · sales + products");
+        marginDelta.setText("cross · sales + products");
+        turnoverDelta.setText("cross · inventory + products + sales");
+        retentionDelta.setText("cross · customers + sales");
+        marketingDelta.setText("cross · marketing + sales (month-level)");
+
+        for (JLabel label : new JLabel[]{revenueDelta, growthDelta, profitDelta, marginDelta, turnoverDelta, retentionDelta, marketingDelta}) {
+            label.setForeground(SECONDARY_TEXT);
+        }
     }
 
     public void updateKpis(
