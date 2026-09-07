@@ -3,19 +3,29 @@ package dashboard.gui;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** Shared filter object used by Overview and analytics pages. */
-public record DashboardFilter(int year, String scope, String period, String region) {
+/**
+ * Immutable value object shared by every analytics page.
+ * Keeping the filter values in one class prevents each page from interpreting
+ * Year / Scope / Month / Period / Region differently.
+ */
+public record DashboardFilter(int year, String scope, String month, String period, String region) {
 
+    /** Default view used when the application first opens. */
+    public static DashboardFilter defaults() {
+        return new DashboardFilter(2023, "Yearly", "January", "Full Year", "All Regions");
+    }
+
+    /**
+     * Converts the Swing filter selection into the query parameters expected by
+     * server.js. All BaseAnalyticsPage pages can therefore reuse the same map.
+     */
     public Map<String, String> toParams() {
         Map<String, String> params = new LinkedHashMap<>();
         params.put("year", String.valueOf(year));
-        params.put("scope", scope == null ? "Yearly" : scope);
-        params.put("period", period == null ? "Full Year" : period);
-        params.put("region", region == null ? "All Regions" : region);
+        params.put("scope", scope);
+        params.put("period", period);
+        params.put("region", region);
+        if (month != null && !month.isBlank()) params.put("month", month);
         return params;
-    }
-
-    public static DashboardFilter defaults() {
-        return new DashboardFilter(2023, "Yearly", "Full Year", "All Regions");
     }
 }

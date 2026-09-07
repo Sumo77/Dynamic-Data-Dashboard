@@ -11,7 +11,9 @@ public abstract class BaseAnalyticsPage extends JPanel implements FilterableDash
     protected static final Color SECONDARY = new Color(100, 116, 139);
 
     protected DashboardFilter filter = DashboardFilter.defaults();
-    protected final JPanel charts = new JPanel(new GridLayout(0, 2, 15, 15));
+    // Keep chart cards at a readable size instead of stretching them to fill the page.
+    // BoxLayout also allows the user to move sideways when a page contains several charts.
+    protected final JPanel charts = new JPanel();
 
     protected BaseAnalyticsPage(String title, String subtitle) {
         setLayout(new BorderLayout(0, 15));
@@ -36,11 +38,15 @@ public abstract class BaseAnalyticsPage extends JPanel implements FilterableDash
         add(header, BorderLayout.NORTH);
 
         charts.setBackground(BACKGROUND);
+        charts.setLayout(new BoxLayout(charts, BoxLayout.X_AXIS));
+
         JScrollPane scroll = new JScrollPane(charts);
         scroll.setBorder(null);
         scroll.getViewport().setBackground(BACKGROUND);
         scroll.getVerticalScrollBar().setUnitIncrement(16);
-        scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        // Horizontal scrolling prevents charts from becoming huge or being squeezed.
+        scroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        scroll.getHorizontalScrollBar().setUnitIncrement(20);
         add(scroll, BorderLayout.CENTER);
     }
 
@@ -55,6 +61,16 @@ public abstract class BaseAnalyticsPage extends JPanel implements FilterableDash
     }
 
     protected final void finishRefresh() {
+        // Give every analytics card a consistent dashboard-sized footprint.
+        // The cards stay readable and extra charts are reached with horizontal scrolling.
+        for (Component component : charts.getComponents()) {
+            if (component instanceof JComponent chartCard) {
+                chartCard.setPreferredSize(new Dimension(500, 330));
+                chartCard.setMinimumSize(new Dimension(500, 330));
+                chartCard.setMaximumSize(new Dimension(500, 330));
+                chartCard.setAlignmentY(Component.TOP_ALIGNMENT);
+            }
+        }
         charts.revalidate();
         charts.repaint();
     }

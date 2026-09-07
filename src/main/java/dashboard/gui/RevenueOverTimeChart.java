@@ -595,4 +595,11 @@ public class RevenueOverTimeChart extends JPanel {
             );
         }
     }
+    /** Receives the dashboard-wide filter and reuses the existing chart filter logic. */
+    public void applyFilter(DashboardFilter filter) {
+        if (filter == null) filter = DashboardFilter.defaults();
+        String selectedMonth = "Weekly".equals(filter.scope()) ? filter.month() : null;
+        applyFilters(filter.year(), filter.scope(), selectedMonth, filter.period());
+    }
+
 }
