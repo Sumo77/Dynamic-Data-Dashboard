@@ -19,7 +19,7 @@ public final class AnalyticsApi {
     public record SeriesPoint(String label, String series, double value) {}
     public record XYPoint(String label, String category, double x, double y) {}
     public record Kpis(double revenue, double growth, double profit, double margin,
-                       double turnover, double retention, double marketingRoi,
+                       double turnover, double retention, double costPerConversion,
                        boolean profitIncludesMarketing, boolean turnoverRegionIgnored) {}
     public record TableData(String[] columns, List<Object[]> rows) {}
 
@@ -33,7 +33,7 @@ public final class AnalyticsApi {
                 number(data.get("profit_margin_pct")),
                 number(data.get("inventory_turnover")),
                 number(data.get("customer_retention_pct")),
-                number(data.get("marketing_roi_pct")),
+                number(data.get("cost_per_conversion")),
                 bool(data.get("profit_includes_marketing")),
                 bool(data.get("inventory_turnover_region_ignored"))
         );

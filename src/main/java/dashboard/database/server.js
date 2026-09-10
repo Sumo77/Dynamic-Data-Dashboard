@@ -1204,39 +1204,19 @@ app.get(
               / priorCount;
 
 
-        // -----------------------------
-        // MARKETING ROI
+                // -----------------------------
+        // COST PER CONVERSION
         //
-        // Whole-business only because
-        // marketing has no region FK.
+        // Replaces Marketing ROI. sales and marketing share no key,
+        // so revenue cannot be attributed to campaigns. Marketing has
+        // no region either, so this is whole-business only.
         // -----------------------------
 
-        const wholeRevenue =
+        const conversions =
           db.prepare(`
             SELECT
               COALESCE(
-                SUM(revenue),
-                0
-              ) AS value
-
-            FROM sales
-
-            WHERE
-              order_date
-              BETWEEN ? AND ?
-          `)
-            .get(
-              range.start,
-              range.end
-            )
-            .value;
-
-
-        const marketingCost =
-          db.prepare(`
-            SELECT
-              COALESCE(
-                SUM(cost),
+                SUM(conversions),
                 0
               ) AS value
 
@@ -1253,17 +1233,11 @@ app.get(
             .value;
 
 
-        const marketingRoi =
-          marketingCost === 0
+        const costPerConversion =
+          conversions === 0
             ? 0
-            : (
-                (
-                  wholeRevenue
-                  - marketingCost
-                )
-                / marketingCost
-              )
-              * 100;
+            : marketingCostRow.cost
+              / conversions;
 
 
         res.json({
@@ -1320,9 +1294,9 @@ app.get(
                 )
               ),
 
-            marketing_roi_pct:
+            cost_per_conversion:
               Number(
-                marketingRoi.toFixed(
+                costPerConversion.toFixed(
                   2
                 )
               )
@@ -2564,10 +2538,10 @@ app.get(
 
 
 // CROSS KPI:
-// Whole-business Marketing ROI over time
+// Whole-business Cost per Conversion over time
 
 app.get(
-  '/api/marketing/roi-trend',
+  '/api/marketing/cost-per-conversion-trend',
   (req, res) =>
     safeRoute(
       res,
@@ -2581,78 +2555,34 @@ app.get(
 
         const rows =
           db.prepare(`
-            WITH revenue AS (
-
-              SELECT
-
-                strftime(
-                  '%Y-%m',
-                  order_date
-                ) AS month,
-
-                SUM(
-                  revenue
-                ) AS revenue
-
-              FROM sales
-
-              WHERE
-                order_date
-                BETWEEN ? AND ?
-
-              GROUP BY month
-            ),
-
-            spend AS (
-
-              SELECT
-
-                strftime(
-                  '%Y-%m',
-                  campaign_date
-                ) AS month,
-
-                SUM(
-                  cost
-                ) AS cost
-
-              FROM marketing
-
-              WHERE
-                campaign_date
-                BETWEEN ? AND ?
-
-              GROUP BY month
-            )
-
             SELECT
 
-              revenue.month
-                AS label,
+              strftime(
+                '%Y-%m',
+                campaign_date
+              ) AS label,
 
               ROUND(
 
                 CASE
 
                   WHEN
-                    spend.cost
-                    IS NULL
-
-                    OR
-                    spend.cost
-                    = 0
+                    SUM(
+                      conversions
+                    ) = 0
 
                   THEN 0
 
                   ELSE
 
-                    (
-                      revenue.revenue
-                      - spend.cost
+                    SUM(
+                      cost
                     )
-                    * 100.0
+                    * 1.0
                     /
-                    spend.cost
+                    SUM(
+                      conversions
+                    )
 
                 END,
 
@@ -2660,18 +2590,17 @@ app.get(
 
               ) AS value
 
-            FROM revenue
+            FROM marketing
 
-            JOIN spend
-              ON spend.month
-              = revenue.month
+            WHERE
+              campaign_date
+              BETWEEN ? AND ?
 
-            ORDER BY
-              revenue.month
+            GROUP BY label
+
+            ORDER BY label
           `)
             .all(
-              range.start,
-              range.end,
               range.start,
               range.end
             );
