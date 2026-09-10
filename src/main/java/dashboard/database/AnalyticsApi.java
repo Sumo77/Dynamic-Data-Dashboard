@@ -137,4 +137,34 @@ public final class AnalyticsApi {
     private static String text(Object value) {
         return value == null ? "" : String.valueOf(value);
     }
+
+    public record UploadResult(boolean success, String error, String table, int totalRows, int loaded, int rejected, java.util.List<String> rejectedDetail) {}
+
+    public static UploadResult upload(String absolutePath) throws Exception {
+        String body = "{\"path\":\""
+            + absolutePath.replace("\\", "\\\\")
+            + "\"}";
+
+        Map<String, Object> root =
+            asMap(SchemaIntrospector.MiniJson.parse(
+                ApiClient.postJson("api/upload", body)));
+
+        boolean ok = Boolean.TRUE.equals(root.get("success"));
+
+        java.util.List<String> detail = new ArrayList<>();
+        for (Object item : asList(root.get("rejected_detail"))) {
+            Map<String, Object> r = asMap(item);
+            detail.add("Rejected Line " + (int) number(r.get("line")) + ": " + text(r.get("reason")));
+        }
+
+        return new UploadResult(
+            ok,
+            text(root.get("error")),
+            text(root.get("table")),
+            (int) number(root.get("total_rows")),
+            (int) number(root.get("loaded")),
+            (int) number(root.get("rejected")),
+            detail
+        );
+    }
 }

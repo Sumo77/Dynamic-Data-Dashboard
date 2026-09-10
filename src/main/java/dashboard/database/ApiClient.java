@@ -45,4 +45,18 @@ public class ApiClient {
 
         return response.body();
     }
+
+    public static String postJson(String endpoint, String jsonBody) throws Exception {
+        HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(BASE_URL + "/" + endpoint))
+                .timeout(Duration.ofMinutes(5))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                .build();
+
+        HttpResponse<String> response =
+                client.send(request, HttpResponse.BodyHandlers.ofString());
+
+        return response.body();
+    }
 }

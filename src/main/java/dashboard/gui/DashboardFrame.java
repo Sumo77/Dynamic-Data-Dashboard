@@ -1,5 +1,6 @@
 package dashboard.gui;
 
+import dashboard.database.AnalyticsApi;
 import dashboard.database.SchemaIntrospector;
 import dashboard.database.SchemaIntrospector.TableMeta;
 
@@ -7,6 +8,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.ArrayList;
 
 /**
  * Main application window.
@@ -109,6 +111,19 @@ public class DashboardFrame extends JFrame {
         logo.add(sub);
         top.add(logo, BorderLayout.WEST);
 
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 25));
+        actions.setBackground(BACKGROUND);
+
+        JButton upload = new JButton("Upload CSV");
+        upload.setFont(new Font("SansSerif", Font.PLAIN, 13));
+        upload.setFocusPainted(false);
+        upload.setPreferredSize(new Dimension(130, 34));
+        upload.setToolTipText("Upload sales, inventory, products, marketing, or customers data (CSV format)");
+        upload.addActionListener(e -> uploadCsv());
+
+        actions.add(upload);
+        top.add(actions, BorderLayout.EAST);
+
         return top;
     }
 
@@ -181,4 +196,84 @@ public class DashboardFrame extends JFrame {
         panel.add(new JLabel("<html><h1>" + title + "</h1><p>" + message + "</p></html>"), BorderLayout.NORTH);
         return panel;
     }
+
+    private void uploadCsv() {
+        JFileChooser chooser = new JFileChooser();
+        chooser.setDialogTitle("Select a CSV file");
+        chooser.setFileFilter(
+                new javax.swing.filechooser.FileNameExtensionFilter("CSV files", "csv"));
+
+        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
+
+        java.io.File file = chooser.getSelectedFile();
+        JDialog loading = new JDialog(this, "Uploading", true);
+        JPanel body = new JPanel(new BorderLayout(0, 10));
+        body.setBorder(BorderFactory.createEmptyBorder(20, 25, 20, 25));
+
+        body.add(new JLabel("Loading " + file.getName() + "..."), BorderLayout.NORTH);
+
+        JProgressBar bar = new JProgressBar();
+        bar.setIndeterminate(true);
+        body.add(bar, BorderLayout.CENTER);
+
+        loading.setContentPane(body);
+        loading.pack();
+        loading.setLocationRelativeTo(this);
+        loading.setDefaultCloseOperation(JDialog.DO_NOTHING_ON_CLOSE);
+
+        new SwingWorker<AnalyticsApi.UploadResult, Void>() {
+            @Override
+            protected AnalyticsApi.UploadResult doInBackground() throws Exception {
+                return AnalyticsApi.upload(file.getAbsolutePath());
+            }
+
+            @Override
+            protected void done() {
+                loading.dispose();
+                setCursor(Cursor.getDefaultCursor());
+                try {
+                    AnalyticsApi.UploadResult result = get();
+
+                    if (result.success()) {
+                        String message =
+                            "Loaded " + result.loaded() + " of " + result.totalRows()
+                            + " rows into " + result.table() + ".\n"
+                            + result.rejected() + " row(s) rejected.";
+
+                        if (!result.rejectedDetail().isEmpty()) {
+                            message += "\n\n" + String.join("\n", result.rejectedDetail());
+                            if (result.rejected() > result.rejectedDetail().size()) {
+                                message += "\n... and "
+                                        + (result.rejected() - result.rejectedDetail().size())
+                                        + " more";
+                            }
+                        }
+
+                        JOptionPane.showMessageDialog(
+                                DashboardFrame.this, message,
+                                "Upload Complete", JOptionPane.INFORMATION_MESSAGE
+                            );
+
+                        filterablePages.keySet()
+                                .forEach(DashboardFrame.this::applyFilterToPage);
+                    } else {
+                        JOptionPane.showMessageDialog(
+                                DashboardFrame.this,
+                                result.error(),
+                                "Upload Failed",
+                                JOptionPane.ERROR_MESSAGE);
+                    }
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(
+                            DashboardFrame.this,
+                            "Upload failed: " + ex,
+                            "Upload Failed",
+                            JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        }.execute();
+
+        loading.setVisible(true);
+    }
+
 }

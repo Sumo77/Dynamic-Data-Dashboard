@@ -14,6 +14,99 @@ const dbPath = path.join(
 
 const db = new Database(dbPath);
 
+// CSV parsing
+const { parse } = require('csv-parse/sync');
+
+// Maps each expected filename to its table, columns, and validation rules.
+// `columns` maps CSV header -> database column (the two date renames live here).
+const DATASETS = {
+
+  products: {
+    table: 'products',
+    pk: 'product_id',
+    columns: {
+      product_id: 'product_id',
+      category: 'category',
+      price: 'price',
+      cost: 'cost'
+    },
+    numeric: ['product_id', 'price', 'cost'],
+    required: ['product_id'],
+    dates: [],
+    parents: []
+  },
+
+  customers: {
+    table: 'customers',
+    pk: 'customer_id',
+    columns: {
+      customer_id: 'customer_id',
+      age: 'age',
+      gender: 'gender',
+      country: 'country',
+      signup_date: 'signup_date'
+    },
+    numeric: ['customer_id', 'age'],
+    required: ['customer_id'],
+    dates: ['signup_date'],
+    parents: []
+  },
+
+  marketing: {
+    table: 'marketing',
+    pk: 'campaign_id',
+    columns: {
+      campaign_id: 'campaign_id',
+      channel: 'channel',
+      cost: 'cost',
+      conversions: 'conversions',
+      date: 'campaign_date'          // rename
+    },
+    numeric: ['campaign_id', 'cost', 'conversions'],
+    required: ['campaign_id'],
+    dates: ['date'],
+    parents: []
+  },
+
+  inventory: {
+    table: 'inventory',
+    pk: 'inventory_id',
+    columns: {
+      inventory_id: 'inventory_id',
+      product_id: 'product_id',
+      stock_level: 'stock_level',
+      warehouse: 'warehouse',
+      date: 'snapshot_date'          // rename
+    },
+    numeric: ['inventory_id', 'product_id', 'stock_level'],
+    required: ['inventory_id', 'product_id'],
+    dates: ['date'],
+    parents: [{ column: 'product_id', table: 'products', key: 'product_id' }]
+  },
+
+  sales: {
+    table: 'sales',
+    pk: 'order_id',
+    columns: {
+      order_id: 'order_id',
+      customer_id: 'customer_id',
+      product_id: 'product_id',
+      quantity: 'quantity',
+      order_date: 'order_date',
+      region: 'region',
+      price: 'price',
+      revenue: 'revenue'
+    },
+    numeric: ['order_id', 'customer_id', 'product_id', 'quantity', 'price', 'revenue'],
+    required: ['order_id', 'customer_id', 'product_id'],
+    dates: ['order_date'],
+    parents: [
+      { column: 'customer_id', table: 'customers', key: 'customer_id' },
+      { column: 'product_id',  table: 'products',  key: 'product_id' }
+    ]
+  }
+};
+
 
 // ============================================================
 // SCHEMA INTROSPECTION
@@ -3340,6 +3433,196 @@ app.post(
       });
     }
   }
+);
+
+
+// ============================================================
+// CSV UPLOAD
+// ============================================================
+
+function uploadError(res, problem, fix) {
+  return res.status(400).json({
+    success: false,
+    error: problem + (fix ? '\n\n' + fix : '')
+  });
+}
+
+app.post(
+  '/api/upload',
+  (req, res) =>
+    safeRoute(res, () => {
+
+      const filePath = String(req.body.path || '').trim();
+
+      if (!filePath || !fs.existsSync(filePath)) {
+        return uploadError(res, 'File not found: ' + filePath);
+      }
+
+      // Dataset identified by filename
+      const fileName = path.basename(filePath).toLowerCase();
+      const key = Object.keys(DATASETS)
+        .find(k => fileName === k + '.csv');
+
+      if (!key) {
+        return uploadError(res,
+          '"' + fileName + '" is not a recognised data file.\n',
+          'Ensure it fits the type (and naming) of one of: '
+          + Object.keys(DATASETS).map(k => k + '.csv').join(', '));
+      }
+
+      const spec = DATASETS[key];
+
+      // Parse
+      let rows;
+      try {
+        rows = parse(fs.readFileSync(filePath, 'utf8'), {
+          columns: true,
+          skip_empty_lines: true,
+          trim: true,
+          bom: true
+        });
+            } catch (err) {
+        return uploadError(res,
+          'Could not read ' + path.basename(filePath) + ': ' + err.message,
+          '\nEvery row must have the same number of commas as the header row. '
+          + '\nIf a value contains a comma, wrap it in double quotes, like "Home, Garden"');
+      }
+
+      if (rows.length === 0) {
+        return uploadError(res,
+          'File is empty (contains no data rows).');
+      }
+
+      // Header check
+      const expected = Object.keys(spec.columns);
+      const actual = Object.keys(rows[0]);
+      const missing = expected.filter(c => !actual.includes(c));
+
+      if (missing.length > 0) {
+        return uploadError(res,
+          'Missing column(s): ' + missing.join(', '),
+          '\nExpected header: ' + expected.join(', '));
+      }
+
+      // Statement for upserting into this table
+      const dbCols = expected.map(c => spec.columns[c]);
+      const updates = dbCols
+        .filter(c => c !== spec.pk)
+        .map(c => `"${c}" = excluded."${c}"`)
+        .join(', ');
+
+      const insert = db.prepare(`
+        INSERT INTO "${spec.table}" (${dbCols.map(c => `"${c}"`).join(', ')})
+        VALUES (${dbCols.map(() => '?').join(', ')})
+        ON CONFLICT("${spec.pk}") DO UPDATE SET ${updates}
+      `);
+
+      // Parent lookups for foreign key checks
+      const parentChecks = spec.parents.map(p => ({
+        column: p.column,
+        table: p.table,
+        stmt: db.prepare(`SELECT 1 AS ok FROM "${p.table}" WHERE "${p.key}" = ?`)
+      }));
+
+      const rejected = [];
+      let inserted = 0;
+
+      const loadAll = db.transaction(() => {
+
+        rows.forEach((row, index) => {
+
+          const lineNumber = index + 2;   // +1 for header, +1 for 1-based
+
+          // empty row
+          if (expected.every(c => String(row[c] ?? '').trim() === '')) {
+            rejected.push({ line: lineNumber, reason: 'Row is empty' });
+            return;
+          }
+
+          // required fields
+          const blank = spec.required
+            .find(c => String(row[c] ?? '').trim() === '');
+
+          if (blank) {
+            rejected.push({ line: lineNumber, reason: 'Missing required field: ' + blank });
+            return;
+          }
+
+          // numeric fields must parse
+          const values = [];
+          let badNumber = null;
+
+          for (const csvCol of expected) {
+            const raw = row[csvCol];
+
+            if (spec.numeric.includes(csvCol)) {
+              const n = Number(raw);
+              if (raw === '' || raw === null || Number.isNaN(n)) {
+                badNumber = csvCol;
+                break;
+              }
+              values.push(n);
+            } else {
+              values.push(raw === '' ? null : raw);
+            }
+          }
+
+          if (badNumber) {
+            rejected.push({ line: lineNumber, reason: 'Not a number: ' + badNumber });
+            return;
+          }
+
+          // Date Fields must look like YYYY-MM-DD
+          const badDate = (spec.dates || [])
+            .find(c => !/^\d{4}-\d{2}-\d{2}$/.test(String(row[c] ?? '').trim()));
+
+          if (badDate) {
+            rejected.push({
+              line: lineNumber,
+              reason: 'Date must be YYYY-MM-DD: ' + badDate
+            });
+            return;
+          }
+
+          // foreign keys must exist
+          let missingParent = null;
+
+          for (const check of parentChecks) {
+            const value = Number(row[check.column]);
+            if (!check.stmt.get(value)) {
+              missingParent = `${check.column} ${value} not found in ${check.table}`;
+              break;
+            }
+          }
+
+          if (missingParent) {
+            rejected.push({ line: lineNumber, reason: missingParent });
+            return;
+          }
+
+          insert.run(...values);
+          inserted++;
+        });
+      });
+
+      loadAll();
+
+      if (rejected.length > 0) {
+        console.log('Rejected rows in ' + fileName + ':');
+        rejected.slice(0, 20).forEach(r => console.log('  line ' + r.line + ': ' + r.reason));
+      }
+
+      res.json({
+        success: true,
+        dataset: key,
+        table: spec.table,
+        total_rows: rows.length,
+        loaded: inserted,
+        rejected: rejected.length,
+        // cap the detail so a badly broken file doesn't return 50,000 messages
+        rejected_detail: rejected.slice(0, 20)
+      });
+    })
 );
 
 
