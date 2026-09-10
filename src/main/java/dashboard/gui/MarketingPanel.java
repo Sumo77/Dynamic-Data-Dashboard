@@ -1,5 +1,7 @@
 package dashboard.gui;
 
+import java.util.List;
+
 import dashboard.database.AnalyticsApi;
 
 public class MarketingPanel extends BaseAnalyticsPage {
@@ -11,31 +13,27 @@ public class MarketingPanel extends BaseAnalyticsPage {
 
     @Override
     protected void refreshData() {
-        startRefresh();
-        try {
-            var params = filter.toParams();
+        var params = filter.toParams();
 
-            charts.add(AnalyticsCharts.pie(
+        loadAsync(() -> List.of(
+            AnalyticsCharts.pie(
                 "Spend by Channel (marketing)",
                 AnalyticsApi.points("api/marketing/spend-channel", params)
-            ));
+            ),
 
-            charts.add(AnalyticsCharts.line(
+            AnalyticsCharts.line(
                 "Cost per Conversion Over Time (marketing)",
                 "Month", "Cost per Conversion ($)",
                 AnalyticsApi.points("api/marketing/cost-per-conversion-trend", params),
                 "Cost per Conversion",
                 null
-            ));
+            ),
 
-            charts.add(AnalyticsCharts.multiLine(
+            AnalyticsCharts.multiLine(
                 "Marketing Spend vs Revenue Over Time (period-level only)", "Month", "Value ($)",
                 AnalyticsApi.seriesPoints("api/marketing/spend-revenue", params),
                 month -> DrilldownDialog.showSales(this, month, null, filter.region())
-            ));
-        } catch (Exception ex) {
-            showError(ex);
-        }
-        finishRefresh();
+            )
+        ));
     }
 }
