@@ -106,7 +106,7 @@ public class KpiPanel extends JPanel {
 
         add(
                 createCard(
-                        "Profit",
+                        "Profit (Net)",
                         profitValue,
                         profitDelta
                 )
@@ -114,7 +114,7 @@ public class KpiPanel extends JPanel {
 
         add(
                 createCard(
-                        "Profit Margin",
+                        "Gross Profit Margin",
                         marginValue,
                         marginDelta
                 )
@@ -273,17 +273,25 @@ public class KpiPanel extends JPanel {
         growthValue.setText(String.format("%.2f%%", kpis.growth()));
         profitValue.setText(String.format("$%,.2f", kpis.profit()));
         marginValue.setText(String.format("%.2f%%", kpis.margin()));
-        turnoverValue.setText(String.format("%.2f", kpis.turnover()));
+        turnoverValue.setText(String.format("%.3f", kpis.turnover()));
         retentionValue.setText(String.format("%.2f%%", kpis.retention()));
         marketingRoiValue.setText(String.format("%.2f%%", kpis.marketingRoi()));
 
-        revenueDelta.setText("solo · sales");
-        growthDelta.setText("solo · sales");
-        profitDelta.setText("cross · sales + products");
-        marginDelta.setText("cross · sales + products");
-        turnoverDelta.setText("cross · inventory + products + sales");
-        retentionDelta.setText("cross · customers + sales");
-        marketingDelta.setText("cross · marketing + sales (month-level)");
+        revenueDelta.setText("Data: sales");
+        growthDelta.setText("Data: sales");
+        profitDelta.setText(
+                "<html><div style='width:160px'>cross · sales + products"
+                + (kpis.profitIncludesMarketing() ? " − marketing" : " (gross — marketing has no region)")
+                + "</div></html>"
+        );
+        marginDelta.setText("Calculation: sales + products");
+        turnoverDelta.setText(
+                "<html><div style='width:160px'>cross · inventory + products + sales"
+                + (kpis.turnoverRegionIgnored() ? " (national — inventory has no region)" : "")
+                + "</div></html>"
+        );
+        retentionDelta.setText("Calculation: customers + sales");
+        marketingDelta.setText("Calculation: marketing + sales (month-level)");
 
         for (JLabel label : new JLabel[]{revenueDelta, growthDelta, profitDelta, marginDelta, turnoverDelta, retentionDelta, marketingDelta}) {
             label.setForeground(SECONDARY_TEXT);

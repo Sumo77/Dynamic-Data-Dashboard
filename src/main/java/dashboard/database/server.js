@@ -968,7 +968,24 @@ app.get(
             .get(
               ...profitParams
             );
+        
+        // -----------------------------
+        // MARKETING COST (for net profit)
+        // marketing has no region column, so it is only
+        // deducted on whole-business views
+        // -----------------------------
+        const marketingCostRow =
+          db.prepare(`
+            SELECT COALESCE(SUM(cost), 0) AS cost
+            FROM marketing
+            WHERE campaign_date BETWEEN ? AND ?
+          `).get(range.start, range.end);
 
+        const isWholeBusiness = (region === 'All Regions');
+
+        const netProfit = isWholeBusiness
+          ? profitRow.profit - marketingCostRow.cost
+          : profitRow.profit;
 
         // -----------------------------
         // INVENTORY TURNOVER
@@ -980,12 +997,8 @@ app.get(
           range.end
         ];
 
-        const cogsRegion =
-          regionClause(
-            's',
-            region,
-            cogsParams
-          );
+        // No region filter for COGS because inventory has no region column, so turnover is always whole-business
+        const cogsRegion = '';
 
         const cogs =
           db.prepare(`
@@ -1020,22 +1033,30 @@ app.get(
           db.prepare(`
             SELECT
               COALESCE(
-                AVG(
-                  i.stock_level
-                  * p.cost
+                SUM(
+                  avg_stock
+                  * cost
                 ),
                 0
               ) AS value
-
-            FROM inventory i
-
-            JOIN products p
-              ON p.product_id
-              = i.product_id
-
-            WHERE
-              i.snapshot_date
-              BETWEEN ? AND ?
+            FROM (
+              SELECT
+                i.product_id,
+                AVG(
+                  i.stock_level
+                ) AS avg_stock,
+                p.cost
+              FROM inventory i
+              JOIN products p
+                ON p.product_id
+                = i.product_id
+              WHERE
+                i.snapshot_date
+                BETWEEN ? AND ?
+              GROUP BY
+                i.product_id,
+                p.cost
+            )
           `)
             .get(
               range.start,
@@ -1267,10 +1288,13 @@ app.get(
 
             profit:
               Number(
-                profitRow.profit.toFixed(
+                netProfit.toFixed(
                   2
                 )
               ),
+            
+            profit_includes_marketing:
+              isWholeBusiness,
 
             profit_margin_pct:
               Number(
@@ -1285,6 +1309,9 @@ app.get(
                   4
                 )
               ),
+
+            inventory_turnover_region_ignored:
+              !isWholeBusiness,
 
             customer_retention_pct:
               Number(
@@ -1770,20 +1797,8 @@ app.get(
           range.end
         ];
 
+        // No region filter for COGS because inventory has no region column, so turnover is always whole-business
         let regionSql = '';
-
-        if (
-          region
-          && region !== 'All Regions'
-        ) {
-
-          regionSql =
-            'AND s.region = ?';
-
-          params.push(
-            region
-          );
-        }
 
         params.push(
           range.start,
@@ -1826,25 +1841,45 @@ app.get(
 
               SELECT
 
-                strftime(
-                  '%Y-%m',
-                  i.snapshot_date
-                ) AS month,
+                month,
 
-                AVG(
-                  i.stock_level
-                  * p.cost
+                SUM(
+                  avg_stock
+                  * cost
                 ) AS inv_value
 
-              FROM inventory i
+              FROM (
 
-              JOIN products p
-                ON p.product_id
-                = i.product_id
+                SELECT
 
-              WHERE
-                i.snapshot_date
-                BETWEEN ? AND ?
+                  strftime(
+                    '%Y-%m',
+                    i.snapshot_date
+                  ) AS month,
+
+                  i.product_id,
+
+                  AVG(
+                    i.stock_level
+                  ) AS avg_stock,
+
+                  p.cost
+
+                FROM inventory i
+
+                JOIN products p
+                  ON p.product_id
+                  = i.product_id
+
+                WHERE
+                  i.snapshot_date
+                  BETWEEN ? AND ?
+
+                GROUP BY
+                  month,
+                  i.product_id,
+                  p.cost
+              )
 
               GROUP BY month
             )
