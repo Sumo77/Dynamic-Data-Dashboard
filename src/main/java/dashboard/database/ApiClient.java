@@ -7,11 +7,14 @@ import java.net.http.HttpResponse;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.time.Duration;
 
 public class ApiClient {
 
     private static final String BASE_URL = "http://localhost:3000";
-    private static final HttpClient client = HttpClient.newHttpClient();
+        private static final HttpClient client = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(3))
+            .build();
 
     public static String getData(String endpoint, Map<String, String> params) throws Exception {
         StringBuilder url = new StringBuilder(BASE_URL + "/" + endpoint);
@@ -30,6 +33,7 @@ public class ApiClient {
 
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url.toString()))
+                .timeout(Duration.ofSeconds(10))
                 .GET()
                 .build();
 

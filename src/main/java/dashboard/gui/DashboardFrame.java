@@ -38,7 +38,18 @@ public class DashboardFrame extends JFrame {
             schema = SchemaIntrospector.introspect();
             System.out.println("Schema loaded successfully.");
         } catch (Exception ex) {
-            System.err.println("Schema introspection failed: " + ex.getMessage());
+            JOptionPane.showMessageDialog(
+                    null,
+                    "Cannot reach the backend service at http://localhost:3000\n\n"
+                    + "Start it first, in a separate terminal:\n\n"
+                    + "    cd src\\main\\java\\dashboard\\database\n"
+                    + "    npm start\n\n"
+                    + "Then run this application again.\n\n"
+                    + "Details: " + ex,
+                    "Backend Not Running",
+                    JOptionPane.ERROR_MESSAGE
+            );
+            System.exit(1);
         }
 
         setTitle("Dynamic Retail Dashboard");

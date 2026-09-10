@@ -1077,19 +1077,32 @@ app.get(
         // sales + customers
         // -----------------------------
 
-        const priorParams = [
-          previous.start,
-          previous.end
+         const existingBase =
+          db.prepare(`
+            SELECT
+              COUNT(*) AS value
+
+            FROM customers
+
+            WHERE
+              signup_date < ?
+          `)
+            .get(
+              range.start
+            )
+            .value;
+
+
+        const retainedParams = [
+          range.start,
+          range.start,
+          range.end
         ];
 
-        const priorRegion =
-          regionClause(
-            's',
-            region,
-            priorParams
-          );
+        // Customers has no region, so retention is always whole-business
+        const retainedRegion = '';
 
-        const priorCount =
+        const retained =
           db.prepare(`
             SELECT
               COUNT(
@@ -1103,105 +1116,25 @@ app.get(
               = s.customer_id
 
             WHERE
-              s.order_date
+              c.signup_date < ?
+
+              AND s.order_date
               BETWEEN ? AND ?
 
-              ${priorRegion}
+              ${retainedRegion}
           `)
             .get(
-              ...priorParams
-            )
-            .value;
-
-
-        const returnedParams = [
-          range.start,
-          range.end
-        ];
-
-        let currentRegionSql = '';
-        let previousRegionSql = '';
-
-        if (
-          region
-          && region !== 'All Regions'
-        ) {
-
-          currentRegionSql =
-            'AND current.region = ?';
-
-          returnedParams.push(
-            region
-          );
-        }
-
-        returnedParams.push(
-          previous.start,
-          previous.end
-        );
-
-        if (
-          region
-          && region !== 'All Regions'
-        ) {
-
-          previousRegionSql =
-            'AND previousSales.region = ?';
-
-          returnedParams.push(
-            region
-          );
-        }
-
-
-        const returned =
-          db.prepare(`
-            SELECT
-              COUNT(
-                DISTINCT current.customer_id
-              ) AS value
-
-            FROM sales current
-
-            JOIN customers c
-              ON c.customer_id
-              = current.customer_id
-
-            WHERE
-              current.order_date
-              BETWEEN ? AND ?
-
-              ${currentRegionSql}
-
-              AND EXISTS (
-
-                SELECT 1
-
-                FROM sales previousSales
-
-                WHERE
-                  previousSales.customer_id
-                  = current.customer_id
-
-                  AND
-                  previousSales.order_date
-                  BETWEEN ? AND ?
-
-                  ${previousRegionSql}
-              )
-          `)
-            .get(
-              ...returnedParams
+              ...retainedParams
             )
             .value;
 
 
         const retention =
-          priorCount === 0
+          existingBase === 0
             ? 0
-            : returned
+            : retained
               * 100.0
-              / priorCount;
+              / existingBase;
 
 
                 // -----------------------------
