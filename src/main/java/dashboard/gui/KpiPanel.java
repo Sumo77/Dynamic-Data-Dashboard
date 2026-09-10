@@ -20,11 +20,11 @@ public class KpiPanel extends JPanel {
     private static final Color BORDER_COLOR =
             new Color(226, 232, 240);
 
-    private static final Color POSITIVE_COLOR =
-            new Color(22, 163, 74);
+//     private static final Color POSITIVE_COLOR =
+//             new Color(22, 163, 74);
 
-    private static final Color NEGATIVE_COLOR =
-            new Color(220, 38, 38);
+//     private static final Color NEGATIVE_COLOR =
+//             new Color(220, 38, 38);
 
     private final JLabel revenueValue =
             new JLabel("Loading...");
@@ -270,7 +270,10 @@ public class KpiPanel extends JPanel {
      */
     public void update(Kpis kpis) {
         revenueValue.setText(String.format("$%,.2f", kpis.revenue()));
-        growthValue.setText(String.format("%.2f%%", kpis.growth()));
+        growthValue.setText(
+                kpis.growth() == null
+                        ? "N/A"
+                        : String.format("%.2f%%", kpis.growth()));
         profitValue.setText(String.format("$%,.2f", kpis.profit()));
         marginValue.setText(String.format("%.2f%%", kpis.margin()));
         turnoverValue.setText(String.format("%.3f", kpis.turnover()));

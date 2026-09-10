@@ -416,77 +416,6 @@ app.get('/api/query/compare-join', (req, res) => {
 
 
 // ============================================================
-// KPI SNAPSHOT
-// ============================================================
-
-app.get('/api/kpis/summary', (req, res) => {
-
-  try {
-
-    const {
-      year_from,
-      year_to
-    } = req.query;
-
-    let query =
-      'SELECT * FROM kpi_snapshot';
-
-    const conditions = [];
-    const params = [];
-
-    if (year_from) {
-
-      conditions.push(
-        'kpi_year >= ?'
-      );
-
-      params.push(
-        year_from
-      );
-    }
-
-    if (year_to) {
-
-      conditions.push(
-        'kpi_year <= ?'
-      );
-
-      params.push(
-        year_to
-      );
-    }
-
-    if (conditions.length > 0) {
-
-      query +=
-        ' WHERE '
-        + conditions.join(' AND ');
-    }
-
-    query +=
-      ' ORDER BY kpi_year ASC';
-
-    const rows =
-      db.prepare(query).all(
-        ...params
-      );
-
-    res.json({
-      success: true,
-      data: rows
-    });
-
-  } catch (err) {
-
-    res.status(500).json({
-      success: false,
-      error: err.message
-    });
-  }
-});
-
-
-// ============================================================
 // DASHBOARD ANALYTICS HELPERS
 // ============================================================
 
@@ -975,7 +904,7 @@ app.get(
 
         const growth =
           previousRevenue === 0
-            ? 0
+            ? null
             : (
                 (
                   currentRevenue
@@ -1280,11 +1209,13 @@ app.get(
               ),
 
             revenue_growth_pct:
-              Number(
-                growth.toFixed(
-                  2
-                )
-              ),
+              growth === null
+                ? null
+                : Number(
+                    growth.toFixed(
+                      2
+                    )
+                  ),
 
             profit:
               Number(
@@ -2139,6 +2070,157 @@ app.get(
         sendRows(
           res,
           data
+        );
+      }
+    )
+);
+
+// CROSS KPI:
+// Stock cover in weeks
+// inventory + sales + products
+//
+// How long current stock would last at the current sales rate.
+// Uses average stock across the period, so this is a typical
+// holding position rather than a live one.
+
+app.get(
+  '/api/inventory/stock-cover-weeks',
+  (req, res) =>
+    safeRoute(
+      res,
+      () => {
+
+        const range =
+          dashboardRange(
+            req
+          );
+
+        const region =
+          String(
+            req.query.region
+            || 'All Regions'
+          );
+
+        const weeks =
+          Math.max(
+            1,
+            (
+              new Date(range.end)
+              - new Date(range.start)
+            )
+            / 604800000
+          );
+
+        const params = [
+          range.start,
+          range.end,
+          range.start,
+          range.end
+        ];
+
+        // Inventory has no region column, so stock cover is whole-business only
+        let regionSql = '';
+
+        params.push(
+          weeks
+        );
+
+        const rows =
+          db.prepare(`
+                        WITH stock AS (
+
+              SELECT
+
+                category,
+
+                SUM(
+                  avg_stock
+                ) AS avg_stock
+
+              FROM (
+
+                SELECT
+
+                  p.category,
+
+                  i.product_id,
+
+                  AVG(
+                    i.stock_level
+                  ) AS avg_stock
+
+                FROM inventory i
+
+                JOIN products p
+                  ON p.product_id
+                  = i.product_id
+
+                WHERE
+                  i.snapshot_date
+                  BETWEEN ? AND ?
+
+                GROUP BY
+                  p.category,
+                  i.product_id
+              )
+
+              GROUP BY category
+            ),
+
+            sold AS (
+
+              SELECT
+
+                p.category,
+
+                SUM(
+                  s.quantity
+                ) AS sold
+
+              FROM sales s
+
+              JOIN products p
+                ON p.product_id
+                = s.product_id
+
+              WHERE
+                s.order_date
+                BETWEEN ? AND ?
+
+                ${regionSql}
+
+              GROUP BY p.category
+            )
+
+            SELECT
+
+              stock.category
+                AS label,
+
+              ROUND(
+                stock.avg_stock
+                /
+                NULLIF(
+                  sold.sold / ?,
+                  0
+                ),
+                1
+              ) AS value
+
+            FROM stock
+
+            JOIN sold
+              USING(category)
+
+            ORDER BY value DESC
+          `)
+            .all(
+              ...params
+            );
+
+        sendRows(
+          res,
+          rows
         );
       }
     )
@@ -3325,37 +3407,6 @@ app.get(
 
 
 // ============================================================
-// EXISTING MARKETING VIEW
-// ============================================================
-
-app.get(
-  '/api/kpis/marketing',
-  (req, res) => {
-
-    try {
-
-      const rows =
-        db.prepare(
-          'SELECT * FROM v_kpi_marketing ORDER BY yr, channel'
-        ).all();
-
-      res.json({
-        success: true,
-        data: rows
-      });
-
-    } catch (err) {
-
-      res.status(500).json({
-        success: false,
-        error: err.message
-      });
-    }
-  }
-);
-
-
-// ============================================================
 // EXISTING LOW STOCK ALERT
 // ============================================================
 
@@ -3384,57 +3435,6 @@ app.get(
     }
   }
 );
-
-
-// ============================================================
-// KPI REFRESH
-// ============================================================
-
-app.post(
-  '/api/kpis/refresh',
-  (req, res) => {
-
-    try {
-
-      const refreshScript =
-        fs.readFileSync(
-
-          path.join(
-            __dirname,
-            'refresh_kpi_snapshot_sqlite.sql'
-          ),
-
-          'utf8'
-        );
-
-
-      db.exec(
-        refreshScript
-      );
-
-
-      res.json({
-
-        success: true,
-
-        message:
-          'KPI cache successfully updated.'
-      });
-
-
-    } catch (err) {
-
-      res.status(500).json({
-
-        success: false,
-
-        error:
-          err.message
-      });
-    }
-  }
-);
-
 
 // ============================================================
 // CSV UPLOAD

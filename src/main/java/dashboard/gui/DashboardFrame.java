@@ -8,7 +8,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.ArrayList;
 
 /**
  * Main application window.
@@ -69,7 +68,7 @@ public class DashboardFrame extends JFrame {
         // ORIGINAL STRUCTURE: the top strip spans the whole window and contains
         // the dark dashboard branding directly above the sidebar.
         root.add(createTopPanel(), BorderLayout.NORTH);
-        root.add(new SidebarPanel(this::showPage), BorderLayout.WEST);
+        root.add(new SidebarPanel(this::showPage, this::uploadCsv), BorderLayout.WEST);
 
         // The filter is only above the changing page content, not above the sidebar.
         JPanel centre = new JPanel(new BorderLayout());
@@ -111,19 +110,6 @@ public class DashboardFrame extends JFrame {
         logo.add(sub);
         top.add(logo, BorderLayout.WEST);
 
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 12, 25));
-        actions.setBackground(BACKGROUND);
-
-        JButton upload = new JButton("Upload CSV");
-        upload.setFont(new Font("SansSerif", Font.PLAIN, 13));
-        upload.setFocusPainted(false);
-        upload.setPreferredSize(new Dimension(130, 34));
-        upload.setToolTipText("Upload sales, inventory, products, marketing, or customers data (CSV format)");
-        upload.addActionListener(e -> uploadCsv());
-
-        actions.add(upload);
-        top.add(actions, BorderLayout.EAST);
-
         return top;
     }
 
@@ -136,6 +122,7 @@ public class DashboardFrame extends JFrame {
         ProductsPanel products = new ProductsPanel();
         MarketingPanel marketing = new MarketingPanel();
         CustomersPanel customers = new CustomersPanel();
+        ReportsPanel reports = new ReportsPanel();
 
         filterablePages.put("Overview", overview);
         filterablePages.put("Sales", sales);
@@ -143,6 +130,7 @@ public class DashboardFrame extends JFrame {
         filterablePages.put("Products", products);
         filterablePages.put("Marketing", marketing);
         filterablePages.put("Customers", customers);
+        filterablePages.put("Reports", reports);
 
         content.add(overview, "Overview");
         content.add(sales, "Sales");
@@ -150,7 +138,7 @@ public class DashboardFrame extends JFrame {
         content.add(products, "Products");
         content.add(marketing, "Marketing");
         content.add(customers, "Customers");
-        content.add(placeholder("Reports", "Report generation remains on the project roadmap."), "Reports");
+        content.add(reports, "Reports");
         content.add(placeholder("Alerts", "The low-stock backend route can be connected here."), "Alerts");
 
         // PERFORMANCE: load only the visible page at startup. Previously all six

@@ -17,9 +17,10 @@ public class InventoryPanel extends BaseAnalyticsPage {
 
         loadAsync(() -> List.of(
             AnalyticsCharts.bar(
-                    "Stock Levels by Warehouse (inventory)", "Warehouse", "Units in Stock",
-                    AnalyticsApi.points("api/inventory/stock-warehouse", params),
-                    "Stock", false, null
+                    "Stock Levels by Category (inventory + products + sales)", "Category", "Weeks of Coverage",
+                    AnalyticsApi.points("api/inventory/stock-cover-weeks", params),
+                    "Weeks of Cover", false, 
+                    category -> DrilldownDialog.showSales(this, null, category, filter.region())
             ),
 
             AnalyticsCharts.line(

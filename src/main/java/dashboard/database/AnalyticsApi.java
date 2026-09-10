@@ -18,7 +18,7 @@ public final class AnalyticsApi {
     public record Point(String label, double value) {}
     public record SeriesPoint(String label, String series, double value) {}
     public record XYPoint(String label, String category, double x, double y) {}
-    public record Kpis(double revenue, double growth, double profit, double margin,
+    public record Kpis(double revenue, Double growth, double profit, double margin,
                        double turnover, double retention, double costPerConversion,
                        boolean profitIncludesMarketing, boolean turnoverRegionIgnored) {}
     public record TableData(String[] columns, List<Object[]> rows) {}
@@ -28,7 +28,9 @@ public final class AnalyticsApi {
         Map<String, Object> data = asMap(root.get("data"));
         return new Kpis(
                 number(data.get("total_revenue")),
-                number(data.get("revenue_growth_pct")),
+                data.get("revenue_growth_pct") == null 
+                    ? null 
+                    : number(data.get("revenue_growth_pct")),
                 number(data.get("profit")),
                 number(data.get("profit_margin_pct")),
                 number(data.get("inventory_turnover")),
